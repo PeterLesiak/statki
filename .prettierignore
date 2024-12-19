@@ -1,5 +1,6 @@
 # dependencies
 /node_modules
+pnpm-lock.yaml
 
 # next.js
 /.next
@@ -8,6 +9,3 @@
 # production
 /build
 
-# typescript
-*.tsbuildinfo
-next-env.d.ts
