@@ -1,18 +1,22 @@
-import type { Metadata } from "next";
-import "./globals.css";
+import type { Metadata } from 'next';
+import { Lexend } from 'next/font/google';
+
+import './globals.css';
+
+const globalFont = Lexend();
 
 export const metadata: Metadata = {
-  title: "Statki",
+    title: 'Statki',
 };
 
 export default function RootLayout({
-  children,
+    children,
 }: Readonly<{
-  children: React.ReactNode;
+    children: React.ReactNode;
 }>) {
-  return (
-    <html lang="pl">
-      <body>{children}</body>
-    </html>
-  );
+    return (
+        <html lang="pl">
+            <body className={globalFont.className}>{children}</body>
+        </html>
+    );
 }
