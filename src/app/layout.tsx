@@ -6,7 +6,7 @@ import './globals.css';
 const globalFont = Lexend();
 
 export const metadata: Metadata = {
-    title: 'Statki',
+    title: 'Statki - Zagraj Teraz',
 };
 
 export default function RootLayout({
