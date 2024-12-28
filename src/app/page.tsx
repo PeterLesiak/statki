@@ -1,82 +1,131 @@
 'use client';
 
-import Image, { type StaticImageData } from 'next/image';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { PlayIcon, RotateCwIcon } from 'lucide-react';
 
-import { createURLString } from '@/utils';
+import { createURLString, randomInteger } from '@/utils';
 
-interface SelectGameModeProps {
-    title: string;
-    theme: string;
-    picture: StaticImageData | string;
-    active?: boolean;
-    onClick?: () => void;
-}
+type Opponent = 'user' | 'computer';
 
-function SelectGameMode({ title, theme, picture, active, onClick }: SelectGameModeProps) {
-    return (
-        <div
-            className={`group h-[7.3rem] w-52 cursor-pointer overflow-hidden rounded-lg border-4 border-light px-4 shadow transition duration-500 ease-out ${theme} ${active ? '' : '[&:not(:hover)]:saturate-0'}`}
-            onClick={onClick}
-        >
-            <div className="mt-2 text-center text-2xl font-bold text-light transition-transform duration-500 ease-out group-hover:translate-x-[-1rem]">
-                {title}
-            </div>
-
-            <Image
-                src={picture}
-                alt="Mode picture"
-                width={100}
-                height={100}
-                className="transition-transform duration-500 ease-out group-hover:translate-x-10"
-            />
-        </div>
-    );
-}
+const avatars = [
+  '/avatars/brain.png',
+  '/avatars/cat.png',
+  '/avatars/dog.png',
+  '/avatars/fish.png',
+  '/avatars/ghost.png',
+  '/avatars/monster.png',
+  '/avatars/mummy.png',
+  '/avatars/robot.png',
+  '/avatars/skeleton.png',
+  '/avatars/vampire.png',
+  '/avatars/zombie.png',
+];
 
 export default function Home() {
-    const router = useRouter();
-    const [mode, setMode] = useState<'user' | 'computer' | null>(null);
+  const router = useRouter();
 
-    const startGame = () => {
-        if (!mode) return;
+  const [opponent, setOpponent] = useState<Opponent>('user');
+  const [defaultUsername, setDefaultUsername] = useState('');
+  const [avatar, setAvatar] = useState(0);
 
-        const route = createURLString('/play', { mode });
+  const usernameRef = useRef<HTMLInputElement>(null);
 
-        router.push(route, { scroll: false });
-    };
+  useEffect(() => {
+    const digits = randomInteger(0, 10_000);
+    const padded = String(digits).padStart(4, '0');
+    setDefaultUsername(`Nickname${padded}`);
 
-    return (
-        <div className="grid h-screen place-content-center">
-            <main className="flex flex-col items-center gap-5 rounded border border-light-200 bg-light-100 p-10 shadow-lg">
-                <header className="text-4xl font-semibold">Nowa gra</header>
-                <h2>Wybierz tryb gry:</h2>
+    const avatarIndex = randomInteger(0, avatars.length);
+    setAvatar(avatarIndex);
+  }, []);
 
-                <section className="flex gap-5">
-                    <SelectGameMode
-                        title="Gracz"
-                        theme="bg-red-500"
-                        picture="/images/users.png"
-                        active={mode == 'user'}
-                        onClick={() => setMode('user')}
-                    />
-                    <SelectGameMode
-                        title="Komputer"
-                        theme="bg-blue-500"
-                        picture="/images/robot.png"
-                        active={mode == 'computer'}
-                        onClick={() => setMode('computer')}
-                    />
-                </section>
+  const nextAvatar = (): void => {
+    const avatarIndex = (avatar + 1) % avatars.length;
 
-                <button
-                    onClick={startGame}
-                    className={`rounded-2xl border-b-[6px] border-green-600 bg-green-500 px-36 py-2 text-lg font-semibold text-light transition ease-in ${mode ? 'hover:brightness-110' : 'cursor-default saturate-0'}`}
+    setAvatar(avatarIndex);
+  };
+
+  const startGame = (): void => {
+    const username = usernameRef.current!.value || defaultUsername;
+    const route = createURLString('/play', { opponent, username, avatar: String(avatar) });
+
+    router.push(route);
+  };
+
+  return (
+    <div className="grid h-full place-items-center">
+      <main className="rounded-lg bg-light-200 p-8 shadow-[8px_8px_0_0_theme(colors.dark.800)] drop-shadow-2xl sm:p-12">
+        <div className="grid grid-rows-[1fr_0.2rem_1fr] gap-8 md:grid-cols-[1fr_0.2rem_1fr] md:grid-rows-none md:gap-12">
+          <div className="flex flex-col items-center gap-8">
+            <div className="relative flex">
+              <div className="grid h-44 w-44 place-items-center overflow-hidden rounded-full border-4 border-dark-800 bg-orange-500">
+                <Image
+                  src={avatars[avatar]}
+                  alt="User avatar"
+                  width={240}
+                  height={240}
+                  priority={true}
+                />
+              </div>
+
+              <div className="absolute left-32 top-32 rotate-180 cursor-pointer rounded-full bg-light p-2 hover:scale-110">
+                <RotateCwIcon
+                  color="hsl(210 100% 14%)"
+                  size={30}
+                  strokeWidth={3.2}
+                  onClick={nextAvatar}
+                />
+              </div>
+            </div>
+
+            <input
+              ref={usernameRef}
+              type="text"
+              placeholder={defaultUsername}
+              className="rounded border-2 border-dark-800 bg-orange-200 p-2 pl-3 text-xl outline-none saturate-50 placeholder:text-dark-800 focus:saturate-100"
+            />
+          </div>
+
+          <div className="h-[0.2rem] rounded-full bg-dark-800 md:h-auto md:w-[0.2rem]"></div>
+
+          <div className="flex flex-col items-center justify-between">
+            <div>
+              <h3 className="mb-5 text-2xl">Wybierz przeciwnika</h3>
+              <div
+                className={`${opponent == 'computer' ? 'after:translate-x-full' : ''} relative grid cursor-pointer grid-cols-2 rounded border-[3px] border-dark-800 text-lg after:absolute after:h-full after:w-1/2 after:bg-dark-800 after:transition-transform after:ease-out`}
+              >
+                <div
+                  className={`${opponent == 'user' ? 'text-light' : ''} relative z-[1] px-4 py-2 text-center transition-colors`}
+                  onClick={() => setOpponent('user')}
                 >
-                    START
-                </button>
-            </main>
+                  Gracz
+                </div>
+                <div
+                  className={`${opponent == 'computer' ? 'text-light' : ''} relative z-[1] px-4 py-2 text-center transition-colors`}
+                  onClick={() => setOpponent('computer')}
+                >
+                  Komputer
+                </div>
+              </div>
+            </div>
+
+            <button
+              className="bg-orange-300 mb-2 flex items-center gap-3 rounded-lg p-2 px-12 shadow-[0_6px_0_0_theme(colors.dark.800)] hover:brightness-105 active:mb-1 active:shadow-[0_2px_0_0_theme(colors.dark.800)]"
+              onClick={startGame}
+            >
+              <PlayIcon
+                fill="hsl(210 100% 14%)"
+                stroke="hsl(210 100% 14%)"
+                size={20}
+                strokeWidth={5}
+              />
+              <span className="text-xl font-semibold">START</span>
+            </button>
+          </div>
         </div>
-    );
+      </main>
+    </div>
+  );
 }
