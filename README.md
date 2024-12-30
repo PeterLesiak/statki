@@ -8,6 +8,8 @@ cd ./statki
 
 pnpm install
 pnpm dev
+
+# now open http://localhost:3000
 ```
 
 ## Credits
