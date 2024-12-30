@@ -2,13 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
-*::before,
-*,
-*::after {
-  box-sizing: border-box;
-}
+@layer base {
+  *::before,
+  *,
+  *::after {
+    box-sizing: border-box;
+  }
 
-body {
-  min-height: 100vh;
-  margin: 0;
+  body {
+    min-height: 100vh;
+    margin: 0;
+  }
 }

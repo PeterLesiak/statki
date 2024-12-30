@@ -10,17 +10,17 @@ import { createURLString, randomInteger } from '@/utils';
 type Opponent = 'user' | 'computer';
 
 const avatars = [
-  '/avatars/brain.png',
-  '/avatars/cat.png',
-  '/avatars/dog.png',
-  '/avatars/fish.png',
-  '/avatars/ghost.png',
-  '/avatars/monster.png',
-  '/avatars/mummy.png',
-  '/avatars/robot.png',
-  '/avatars/skeleton.png',
-  '/avatars/vampire.png',
-  '/avatars/zombie.png',
+  '/images/brain.png',
+  '/images/cat.png',
+  '/images/dog.png',
+  '/images/fish.png',
+  '/images/ghost.png',
+  '/images/monster.png',
+  '/images/mummy.png',
+  '/images/robot.png',
+  '/images/skeleton.png',
+  '/images/vampire.png',
+  '/images/zombie.png',
 ];
 
 export default function Home() {
@@ -28,7 +28,7 @@ export default function Home() {
 
   const [opponent, setOpponent] = useState<Opponent>('user');
   const [defaultUsername, setDefaultUsername] = useState('');
-  const [avatar, setAvatar] = useState(0);
+  const [avatar, setAvatar] = useState<number | null>(null);
 
   const usernameRef = useRef<HTMLInputElement>(null);
 
@@ -42,6 +42,8 @@ export default function Home() {
   }, []);
 
   const nextAvatar = (): void => {
+    if (avatar === null) return;
+
     const avatarIndex = (avatar + 1) % avatars.length;
 
     setAvatar(avatarIndex);
@@ -56,21 +58,23 @@ export default function Home() {
 
   return (
     <div className="grid h-full place-items-center">
-      <main className="rounded-lg bg-light-200 p-8 shadow-[8px_8px_0_0_theme(colors.dark.800)] drop-shadow-2xl sm:p-12">
+      <main className="rounded-lg bg-light-200 p-6 shadow-[8px_8px_0_0_theme(colors.dark.800)] drop-shadow-2xl lg:p-12">
         <div className="grid grid-rows-[1fr_0.2rem_1fr] gap-8 md:grid-cols-[1fr_0.2rem_1fr] md:grid-rows-none md:gap-12">
           <div className="flex flex-col items-center gap-8">
             <div className="relative flex">
               <div className="grid h-44 w-44 place-items-center overflow-hidden rounded-full border-4 border-dark-800 bg-orange-500">
-                <Image
-                  src={avatars[avatar]}
-                  alt="User avatar"
-                  width={240}
-                  height={240}
-                  priority={true}
-                />
+                {avatar !== null ? (
+                  <Image
+                    src={avatars[avatar]}
+                    alt="User avatar"
+                    width={240}
+                    height={240}
+                    priority={true}
+                  />
+                ) : null}
               </div>
 
-              <div className="absolute left-32 top-32 rotate-180 cursor-pointer rounded-full bg-light p-2 hover:scale-110">
+              <div className="bg-light-100 absolute left-32 top-32 rotate-180 cursor-pointer rounded-full p-2 hover:scale-110">
                 <RotateCwIcon
                   color="hsl(210 100% 14%)"
                   size={30}
@@ -97,13 +101,13 @@ export default function Home() {
                 className={`${opponent == 'computer' ? 'after:translate-x-full' : ''} relative grid cursor-pointer grid-cols-2 rounded border-[3px] border-dark-800 text-lg after:absolute after:h-full after:w-1/2 after:bg-dark-800 after:transition-transform after:ease-out`}
               >
                 <div
-                  className={`${opponent == 'user' ? 'text-light' : ''} relative z-[1] px-4 py-2 text-center transition-colors`}
+                  className={`${opponent == 'user' ? 'text-light-100' : ''} relative z-[1] px-4 py-2 text-center transition-colors`}
                   onClick={() => setOpponent('user')}
                 >
                   Gracz
                 </div>
                 <div
-                  className={`${opponent == 'computer' ? 'text-light' : ''} relative z-[1] px-4 py-2 text-center transition-colors`}
+                  className={`${opponent == 'computer' ? 'text-light-100' : ''} relative z-[1] px-4 py-2 text-center transition-colors`}
                   onClick={() => setOpponent('computer')}
                 >
                   Komputer
@@ -112,7 +116,7 @@ export default function Home() {
             </div>
 
             <button
-              className="bg-orange-300 mb-2 flex items-center gap-3 rounded-lg p-2 px-12 shadow-[0_6px_0_0_theme(colors.dark.800)] hover:brightness-105 active:mb-1 active:shadow-[0_2px_0_0_theme(colors.dark.800)]"
+              className="mb-2 flex items-center gap-3 rounded-lg bg-orange-300 p-2 px-12 shadow-[0_6px_0_0_theme(colors.dark.800)] hover:brightness-105 active:mb-1 active:shadow-[0_2px_0_0_theme(colors.dark.800)]"
               onClick={startGame}
             >
               <PlayIcon

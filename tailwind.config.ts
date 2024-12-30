@@ -5,8 +5,9 @@ export default {
   theme: {
     colors: {
       light: {
-        DEFAULT: 'hsl(0 0% 100%)',
+        100: 'hsl(0 0% 100%)',
         200: 'hsl(0 0% 95%)',
+        400: 'hsl(0 0% 75%)',
       },
       dark: {
         800: 'hsl(210 100% 14%)',
