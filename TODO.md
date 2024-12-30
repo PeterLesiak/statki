@@ -1,5 +1,7 @@
 ### TODO List
 
+- [ ] Fix ship alignment
+- [ ] Fix dragging & hover for wider ships
 - [ ] Add slick animations
 - [ ] Use custom target as cursor
 - [ ] Keep everything **extremely** mobile-friendly

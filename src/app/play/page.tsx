@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 
-import { pointInsideRect } from '@/utils';
+import { getTileLocation, pointInsideRect, snapRectToGrid } from '@/utils';
 
 type BoardCell = 'empty' | 'hover' | 'full';
 
@@ -45,17 +45,49 @@ export default function Play() {
       const shipRect = ship.getBoundingClientRect();
 
       valid = pointInsideRect(
-        event.x,
-        event.y,
+        event.x - offsetX,
+        event.y - offsetY,
         boardRect.left,
         boardRect.top,
         boardRect.width,
         boardRect.height,
       );
 
-      const boardWithoutHover = board.map(cell => (cell == 'hover' ? 'empty' : cell));
+      const newBoard = board.map<BoardCell>(cell => (cell == 'hover' ? 'empty' : cell));
 
-      setBoard(boardWithoutHover);
+      if (!valid) {
+        setBoard(newBoard);
+
+        return;
+      }
+
+      const left = event.x - boardRect.left - offsetX;
+      const top = event.y - boardRect.top - offsetY;
+      const tileSize = boardRect.width / boardWidth;
+
+      const [leftSnapped, topSnapped] = snapRectToGrid(
+        left,
+        top,
+        shipRect.width,
+        shipRect.height,
+        tileSize,
+      );
+
+      const shipTileHeight = Math.ceil(shipRect.height / tileSize);
+      const [row, _] = getTileLocation(leftSnapped, topSnapped, tileSize);
+      const invertY = row + shipTileHeight > boardHeight;
+
+      for (let i = 0; i < shipTileHeight; ++i) {
+        const x = leftSnapped;
+        const y = topSnapped + (invertY ? -i : i) * tileSize;
+
+        const [row, column] = getTileLocation(x, y, tileSize);
+        const index = column + row * boardHeight;
+
+        newBoard[index] = 'hover';
+      }
+
+      setBoard(newBoard);
     };
 
     const shipMousedownEvent = (event: MouseEvent): void => {
@@ -88,19 +120,30 @@ export default function Play() {
       const shipRect = ship.getBoundingClientRect();
 
       if (valid) {
-        const tileWidth = boardRect.width / boardWidth;
         const left = event.x - boardRect.left - offsetX;
-        const leftSnapped = left - (left % tileWidth);
-        const leftCentered = leftSnapped + (tileWidth - (shipRect.width % tileWidth)) * 0.5;
-
-        const tileHeight = boardRect.height / boardHeight;
         const top = event.y - boardRect.top - offsetY;
-        const topSnapped = top - (top % tileHeight);
-        const topCentered = topSnapped + (tileHeight - (shipRect.height % tileHeight)) * 0.5;
+        const tileSize = boardRect.width / boardWidth;
 
-        ship.style.left = `${leftCentered}px`;
-        ship.style.top = `${topCentered}px`;
+        const [leftSnapped, topSnapped] = snapRectToGrid(
+          left,
+          top,
+          shipRect.width,
+          shipRect.height,
+          tileSize,
+        );
+
+        const shipTileHeight = Math.ceil(shipRect.height / tileSize);
+        const [row, _] = getTileLocation(leftSnapped, topSnapped, tileSize);
+        const invertY = row + shipTileHeight > boardHeight;
+
+        const topClampped = topSnapped - (invertY ? (shipTileHeight - 1) * tileSize : 0);
+
+        ship.style.left = `${leftSnapped}px`;
+        ship.style.top = `${topClampped}px`;
         shipBoard.append(ship);
+
+        const boardWithoutHover = board.map(cell => (cell == 'hover' ? 'empty' : cell));
+        setBoard(boardWithoutHover);
       } else {
         const index = Number(ship.id.substring(5));
         const container = shipContainer[index]!;
