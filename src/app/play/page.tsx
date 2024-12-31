@@ -103,8 +103,6 @@ export default function Play() {
     };
 
     const shipMousedownEvent = (event: MouseEvent): void => {
-      event.preventDefault();
-
       const ship = event.target as HTMLImageElement;
 
       const shipRect = ship.getBoundingClientRect();
@@ -145,6 +143,8 @@ export default function Play() {
 
       handleShipMove(event);
     };
+
+    const documentScrollEvent = (event: Event): void => {};
 
     const documentMouseupEvent = (event: MouseEvent): void => {
       if (!dragging) return;
@@ -200,12 +200,17 @@ export default function Play() {
       valid = false;
     };
 
+    const eventOptions: AddEventListenerOptions = {
+      passive: true /* enable performance optimizations */,
+    };
+
     for (const ship of ships) {
-      ship!.addEventListener('mousedown', shipMousedownEvent);
+      ship!.addEventListener('mousedown', shipMousedownEvent, eventOptions);
     }
 
-    document.addEventListener('mousemove', documentMousemoveEvent);
-    document.addEventListener('mouseup', documentMouseupEvent);
+    document.addEventListener('mousemove', documentMousemoveEvent, eventOptions);
+    document.addEventListener('scroll', documentScrollEvent, eventOptions);
+    document.addEventListener('mouseup', documentMouseupEvent, eventOptions);
 
     return (): void => {
       for (const ship of ships) {
