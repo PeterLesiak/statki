@@ -10,13 +10,16 @@ type BoardCell = 'empty' | 'hover' | 'full';
 const shipImages: { path: string; width: number; height: number }[] = [
   { path: '/images/Ship 1 - Full.png', width: 30, height: 86 },
   { path: '/images/Ship 2 - Full.png', width: 30, height: 115 },
+  { path: '/images/Ship 2 - Full.png', width: 30, height: 115 },
+  { path: '/images/Ship 3 - Full.png', width: 30, height: 150 },
   { path: '/images/Ship 3 - Full.png', width: 30, height: 150 },
   { path: '/images/Ship 4 - Full.png', width: 30, height: 176 },
 ];
 
 export default function Play() {
-  const [boardWidth, setBoardWidth] = useState(14);
-  const [boardHeight, setBoardHeight] = useState(14);
+  const boardWidth = 14;
+  const boardHeight = 14;
+
   const [board, setBoard] = useState<BoardCell[]>(
     Array<BoardCell>(boardWidth * boardHeight).fill('empty'),
   );
@@ -53,51 +56,83 @@ export default function Play() {
         boardRect.height,
       );
 
-      const newBoard = board.map<BoardCell>(cell => (cell == 'hover' ? 'empty' : cell));
+      setBoard(board => {
+        const newBoard = board.map<BoardCell>(cell => (cell == 'hover' ? 'empty' : cell));
 
-      if (!valid) {
-        setBoard(newBoard);
+        if (!valid) {
+          return newBoard;
+        }
 
-        return;
-      }
+        const left = event.x - boardRect.left - offsetX;
+        const top = event.y - boardRect.top - offsetY;
+        const tileSize = boardRect.width / boardWidth;
 
-      const left = event.x - boardRect.left - offsetX;
-      const top = event.y - boardRect.top - offsetY;
-      const tileSize = boardRect.width / boardWidth;
+        const [leftSnapped, topSnapped] = snapRectToGrid(
+          left,
+          top,
+          shipRect.width,
+          shipRect.height,
+          tileSize,
+        );
 
-      const [leftSnapped, topSnapped] = snapRectToGrid(
-        left,
-        top,
-        shipRect.width,
-        shipRect.height,
-        tileSize,
-      );
+        const [startRow, startColumn] = getTileLocation(leftSnapped, topSnapped, tileSize);
+        const shipTileHeight = Math.ceil(shipRect.height / tileSize);
 
-      const shipTileHeight = Math.ceil(shipRect.height / tileSize);
-      const [row, _] = getTileLocation(leftSnapped, topSnapped, tileSize);
-      const invertY = row + shipTileHeight > boardHeight;
+        if (startRow + shipTileHeight > boardHeight) {
+          valid = false;
 
-      for (let i = 0; i < shipTileHeight; ++i) {
-        const x = leftSnapped;
-        const y = topSnapped + (invertY ? -i : i) * tileSize;
+          return newBoard;
+        }
 
-        const [row, column] = getTileLocation(x, y, tileSize);
-        const index = column + row * boardHeight;
+        for (let i = 0; i < shipTileHeight; ++i) {
+          const row = startRow + i;
+          const column = startColumn;
+          const index = column + row * boardHeight;
 
-        newBoard[index] = 'hover';
-      }
+          if (newBoard[index] == 'full') {
+            valid = false;
 
-      setBoard(newBoard);
+            return newBoard;
+          }
+
+          newBoard[index] = 'hover';
+        }
+
+        return newBoard;
+      });
     };
 
     const shipMousedownEvent = (event: MouseEvent): void => {
       event.preventDefault();
 
-      const ship = event.target! as HTMLImageElement;
+      const ship = event.target as HTMLImageElement;
+
       const shipRect = ship.getBoundingClientRect();
+      const boardRect = shipBoard.getBoundingClientRect();
 
       const offsetX = event.x - shipRect.left;
       const offsetY = event.y - shipRect.top;
+
+      if (ship.parentElement == shipBoard) {
+        setBoard(board => {
+          const newBoard = [...board];
+
+          const left = parseInt(ship.style.left) - boardRect.left;
+          const top = parseInt(ship.style.top) - boardRect.top;
+          const tileSize = boardRect.width / boardWidth;
+
+          const [row, column] = getTileLocation(left, top, tileSize);
+          const shipTileHeight = Math.ceil(shipRect.height / tileSize);
+
+          for (let i = 0; i < shipTileHeight; ++i) {
+            const index = column + (row + i) * boardHeight;
+
+            newBoard[index] = 'empty';
+          }
+
+          return newBoard;
+        });
+      }
 
       dragging = { ship, offsetX, offsetY };
       document.body.append(ship);
@@ -132,18 +167,26 @@ export default function Play() {
           tileSize,
         );
 
-        const shipTileHeight = Math.ceil(shipRect.height / tileSize);
-        const [row, _] = getTileLocation(leftSnapped, topSnapped, tileSize);
-        const invertY = row + shipTileHeight > boardHeight;
+        setBoard(board => {
+          const newBoard = board.map<BoardCell>(cell => (cell == 'hover' ? 'empty' : cell));
 
-        const topClampped = topSnapped - (invertY ? (shipTileHeight - 1) * tileSize : 0);
+          const [startRow, startColumn] = getTileLocation(leftSnapped, topSnapped, tileSize);
+          const shipTileHeight = Math.ceil(shipRect.height / tileSize);
+
+          for (let i = 0; i < shipTileHeight; ++i) {
+            const row = startRow + i;
+            const column = startColumn;
+            const index = column + row * boardHeight;
+
+            newBoard[index] = 'full';
+          }
+
+          return newBoard;
+        });
 
         ship.style.left = `${leftSnapped}px`;
-        ship.style.top = `${topClampped}px`;
+        ship.style.top = `${topSnapped}px`;
         shipBoard.append(ship);
-
-        const boardWithoutHover = board.map(cell => (cell == 'hover' ? 'empty' : cell));
-        setBoard(boardWithoutHover);
       } else {
         const index = Number(ship.id.substring(5));
         const container = shipContainer[index]!;
@@ -166,18 +209,21 @@ export default function Play() {
 
     return (): void => {
       for (const ship of ships) {
-        ship!.removeEventListener('mousedown', shipMousedownEvent);
+        ship?.removeEventListener('mousedown', shipMousedownEvent);
       }
 
       document.removeEventListener('mousemove', documentMousemoveEvent);
       document.removeEventListener('mouseup', documentMouseupEvent);
     };
-  }, [boardWidth, boardHeight]);
+  }, []);
 
   return (
     <div className="grid h-full place-items-center">
       <main className="flex gap-16 rounded-lg bg-light-200 px-16 py-8 shadow-[8px_8px_0_0_theme(colors.dark.800)] drop-shadow-2xl">
-        <section className="flex flex-col gap-4 rounded-lg drop-shadow-2xl">
+        <section
+          className="grid items-center gap-4 rounded-lg"
+          style={{ gridTemplateColumns: `repeat(${shipImages.length / 3}, minmax(0, 1fr))` }}
+        >
           {shipImages.map((ship, index) => (
             <div
               ref={instance => void (shipContainerRef.current[index] = instance)}
@@ -193,7 +239,7 @@ export default function Play() {
                 alt="Ship"
                 draggable="false"
                 id={`ship-${index}`}
-                className="absolute cursor-pointer"
+                className="absolute cursor-pointer select-none"
               />
             </div>
           ))}
@@ -213,7 +259,7 @@ export default function Play() {
             >
               {board.map((cell, index) => (
                 <div
-                  className={`${cell == 'hover' ? 'bg-light-400' : ''} border border-dark-800`}
+                  className={`${cell == 'hover' ? 'bg-light-400' : ''} ${cell == 'full' ? 'bg-orange-500' : ''} border border-dark-800`}
                   key={index}
                 ></div>
               ))}
