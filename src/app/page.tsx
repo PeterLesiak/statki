@@ -74,13 +74,8 @@ export default function Home() {
                 ) : null}
               </div>
 
-              <div className="bg-light-100 absolute left-32 top-32 rotate-180 cursor-pointer rounded-full p-2 hover:scale-110">
-                <RotateCwIcon
-                  color="hsl(210 100% 14%)"
-                  size={30}
-                  strokeWidth={3.2}
-                  onClick={nextAvatar}
-                />
+              <div className="absolute left-32 top-32 rotate-180 cursor-pointer rounded-full bg-light-100 p-2 *:stroke-dark-800 hover:scale-110">
+                <RotateCwIcon size={30} strokeWidth={3.2} onClick={nextAvatar} />
               </div>
             </div>
 
@@ -116,15 +111,10 @@ export default function Home() {
             </div>
 
             <button
-              className="mb-2 flex items-center gap-3 rounded-lg bg-orange-300 p-2 px-12 shadow-[0_6px_0_0_theme(colors.dark.800)] hover:brightness-105 active:mb-1 active:shadow-[0_2px_0_0_theme(colors.dark.800)]"
+              className="mb-2 flex items-center gap-3 rounded-lg bg-orange-300 p-2 px-12 shadow-[0_6px_0_0_theme(colors.dark.800)] *:fill-dark-800 *:stroke-dark-800 hover:brightness-105 active:mb-1 active:shadow-[0_2px_0_0_theme(colors.dark.800)]"
               onClick={startGame}
             >
-              <PlayIcon
-                fill="hsl(210 100% 14%)"
-                stroke="hsl(210 100% 14%)"
-                size={20}
-                strokeWidth={5}
-              />
+              <PlayIcon size={20} strokeWidth={5} />
               <span className="text-xl font-semibold">START</span>
             </button>
           </div>

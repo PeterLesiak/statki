@@ -1,11 +1,16 @@
-## TODO List
+<div align="center">
 
-- [ ] Fix ship image alignment
-- [ ] Fix dragging & hover for wider ships
+# TODO List
+
+</div>
+
+- [ ] Add ability to rotate ships
 - [ ] Add slick animations
+- [ ] Fix ship image alignment
 - [ ] Use custom target as cursor
 - [ ] Keep everything **extremely** mobile-friendly
 - [ ] Display opponent's avatar & username
+- [ ] Convert all images to webp format
 - [ ] Save avatar & username in local storage
 - [ ] Add a timer
 - [ ] Implement WebSocket server

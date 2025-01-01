@@ -6,8 +6,10 @@ import './globals.css';
 
 const globalFont = Lexend();
 
+// prettier-ignore
 export const metadata: Metadata = {
   title: 'Statki - Zagraj Teraz',
+  description: 'Graj w statki online za darmo! Prosta obsługa, szybkie rozgrywki i rywalizacja z przyjaciółmi.',
 };
 
 export default function RootLayout({
