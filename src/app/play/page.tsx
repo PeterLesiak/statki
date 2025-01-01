@@ -386,10 +386,10 @@ export default function Play() {
 
   return (
     <div className="grid h-full place-items-center">
-      <main className="grid grid-cols-[1fr_5fr_1fr] gap-16 rounded-lg bg-light-200 px-16 py-8 shadow-[8px_8px_0_0_theme(colors.dark.800)] drop-shadow-2xl">
+      <main className="grid grid-cols-[1fr_5fr_1fr] gap-8 rounded-lg bg-light-200 px-8 py-8 shadow-[8px_8px_0_0_theme(colors.dark.800)] drop-shadow-2xl lg:gap-16 lg:px-16">
         <section
           className="grid place-items-center gap-4"
-          style={{ gridTemplateColumns: `repeat(${shipImages.length / 3}, minmax(0, 1fr))` }}
+          style={{ gridTemplateColumns: `repeat(${shipImages.length / 3}, 1fr)` }}
         >
           {shipImages.map((ship, index) => (
             <div
@@ -421,8 +421,8 @@ export default function Play() {
               id="tile-grid"
               className="relative grid aspect-square h-[30rem] rounded border-2 border-dark-800"
               style={{
-                gridTemplateRows: `repeat(${boardWidth}, minmax(0, 1fr))`,
-                gridTemplateColumns: `repeat(${boardHeight}, minmax(0, 1fr))`,
+                gridTemplateRows: `repeat(${boardWidth}, 1fr)`,
+                gridTemplateColumns: `repeat(${boardHeight}, 1fr)`,
               }}
             >
               {board.map((cell, index) => (
