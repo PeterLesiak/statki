@@ -22,7 +22,7 @@ export default function RootLayout({
       <body className={globalFont.className}>
         <div
           className="h-screen bg-orange-500 bg-[size:300px]"
-          style={{ backgroundImage: `url('/images/background.png')` }}
+          style={{ backgroundImage: `url('/images/background.webp')` }}
         >
           {children}
         </div>

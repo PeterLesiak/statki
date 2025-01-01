@@ -9,12 +9,12 @@ import { getTileLocation, pointInsideRect, snapRectToGrid } from '@/utils';
 type BoardCell = 'empty' | 'hover' | 'full';
 
 const shipImages: { path: string; width: number; height: number }[] = [
-  { path: '/images/Ship 1 - Full.png', width: 30, height: 81 },
-  { path: '/images/Ship 2 - Full.png', width: 30, height: 115 },
-  { path: '/images/Ship 2 - Full.png', width: 30, height: 115 },
-  { path: '/images/Ship 3 - Full.png', width: 30, height: 150 },
-  { path: '/images/Ship 3 - Full.png', width: 30, height: 150 },
-  { path: '/images/Ship 4 - Full.png', width: 30, height: 176 },
+  { path: '/images/Ship 1 - Full.webp', width: 30, height: 81 },
+  { path: '/images/Ship 2 - Full.webp', width: 30, height: 115 },
+  { path: '/images/Ship 2 - Full.webp', width: 30, height: 115 },
+  { path: '/images/Ship 3 - Full.webp', width: 30, height: 150 },
+  { path: '/images/Ship 3 - Full.webp', width: 30, height: 150 },
+  { path: '/images/Ship 4 - Full.webp', width: 30, height: 176 },
 ];
 
 export default function Play() {

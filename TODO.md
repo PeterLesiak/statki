@@ -6,13 +6,13 @@
 
 - [ ] Add ability to rotate ships
 - [ ] Add slick animations
-- [ ] Fix ship image alignment
-- [ ] Use custom target as cursor
 - [ ] Keep everything **extremely** mobile-friendly
+- [ ] Use custom target as cursor
 - [ ] Display opponent's avatar & username
-- [ ] Convert all images to webp format
-- [ ] Save avatar & username in local storage
+- [ ] Fix ship image alignment
 - [ ] Add a timer
+- [ ] Save avatar & username in local storage
+- [x] Convert all images to webp format
 - [ ] Implement WebSocket server
 - [ ] Implement user vs user mode
 - [ ] Allow rejoining / reloading page without session loss

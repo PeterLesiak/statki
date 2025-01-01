@@ -10,17 +10,17 @@ import { createURLString, randomInteger } from '@/utils';
 type Opponent = 'user' | 'computer';
 
 const avatars = [
-  '/images/brain.png',
-  '/images/cat.png',
-  '/images/dog.png',
-  '/images/fish.png',
-  '/images/ghost.png',
-  '/images/monster.png',
-  '/images/mummy.png',
-  '/images/robot.png',
-  '/images/skeleton.png',
-  '/images/vampire.png',
-  '/images/zombie.png',
+  '/images/brain.webp',
+  '/images/cat.webp',
+  '/images/dog.webp',
+  '/images/fish.webp',
+  '/images/ghost.webp',
+  '/images/monster.webp',
+  '/images/mummy.webp',
+  '/images/robot.webp',
+  '/images/skeleton.webp',
+  '/images/vampire.webp',
+  '/images/zombie.webp',
 ];
 
 export default function Home() {
