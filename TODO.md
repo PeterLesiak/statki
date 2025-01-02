@@ -1,8 +1,4 @@
-<div align="center">
-
 # TODO List
-
-</div>
 
 - [ ] Add ability to rotate ships
 - [ ] Add slick animations
@@ -11,7 +7,7 @@
 - [ ] Display opponent's avatar & username
 - [ ] Fix ship image alignment
 - [ ] Add a timer
-- [ ] Save avatar & username in local storage
+- [x] Save avatar & username in local storage
 - [x] Convert all images to webp format
 - [ ] Implement WebSocket server
 - [ ] Implement user vs user mode

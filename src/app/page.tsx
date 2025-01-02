@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { PlayIcon, RotateCwIcon } from 'lucide-react';
 
+import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { createURLString, randomInteger } from '@/utils';
 
 type Opponent = 'user' | 'computer';
@@ -28,7 +29,9 @@ export default function Home() {
 
   const [opponent, setOpponent] = useState<Opponent>('user');
   const [defaultUsername, setDefaultUsername] = useState('');
-  const [avatar, setAvatar] = useState<number | null>(null);
+  const [lastUsername, setLastUsername] = useLocalStorage('username', '');
+  const [defaultAvatar, setDefaultAvatar] = useState<number | null>(null);
+  const [avatar, setAvatar] = useLocalStorage<number | null>('avatar', null);
 
   const usernameRef = useRef<HTMLInputElement>(null);
 
@@ -38,19 +41,23 @@ export default function Home() {
     setDefaultUsername(`Nickname${padded}`);
 
     const avatarIndex = randomInteger(0, avatars.length);
-    setAvatar(avatarIndex);
+    setDefaultAvatar(avatarIndex);
   }, []);
 
   const nextAvatar = (): void => {
-    if (avatar === null) return;
+    if (defaultAvatar === null) return;
 
-    const avatarIndex = (avatar + 1) % avatars.length;
+    const current = avatar === null ? defaultAvatar : avatar;
+    const next = (current + 1) % avatars.length;
 
-    setAvatar(avatarIndex);
+    setAvatar(next);
   };
 
   const startGame = (): void => {
-    const username = usernameRef.current!.value || defaultUsername;
+    const usernameValue = usernameRef.current!.value;
+    setLastUsername(usernameValue);
+    const username = usernameValue || defaultUsername;
+
     const route = createURLString('/play', { opponent, username, avatar: String(avatar) });
 
     router.push(route);
@@ -63,9 +70,9 @@ export default function Home() {
           <div className="flex flex-col items-center gap-8">
             <div className="relative flex">
               <div className="grid h-44 w-44 place-items-center overflow-hidden rounded-full border-4 border-dark-800 bg-orange-500">
-                {avatar !== null ? (
+                {defaultAvatar !== null ? (
                   <Image
-                    src={avatars[avatar]}
+                    src={avatars[avatar === null ? defaultAvatar : avatar]}
                     alt="User avatar"
                     width={240}
                     height={240}
@@ -74,14 +81,18 @@ export default function Home() {
                 ) : null}
               </div>
 
-              <div className="absolute left-32 top-32 rotate-180 cursor-pointer rounded-full bg-light-100 p-2 *:stroke-dark-800 hover:scale-110">
-                <RotateCwIcon size={30} strokeWidth={3.2} onClick={nextAvatar} />
+              <div
+                className="absolute left-32 top-32 rotate-180 cursor-pointer rounded-full bg-light-100 p-2 *:stroke-dark-800 hover:scale-110"
+                onClick={nextAvatar}
+              >
+                <RotateCwIcon size={30} strokeWidth={3.2} />
               </div>
             </div>
 
             <input
               ref={usernameRef}
               type="text"
+              defaultValue={lastUsername}
               placeholder={defaultUsername}
               className="rounded border-2 border-dark-800 bg-orange-200 p-2 pl-3 text-xl outline-none saturate-50 placeholder:text-dark-800 focus:saturate-100"
             />
