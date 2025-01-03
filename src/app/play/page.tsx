@@ -1,171 +1,356 @@
 'use client';
 
 import Image from 'next/image';
-import { useEffect, useRef, useState } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ComponentPropsWithRef,
+  type ReactNode,
+} from 'react';
 import { PlayIcon, ShuffleIcon, Trash2Icon } from 'lucide-react';
 
-import { getTileLocation, pointInsideRect, snapRectToGrid } from '@/utils';
+import { centerPointToTile, getTileLocation, pointInsideRect, randomInteger } from '@/utils';
 
-type BoardCell = 'empty' | 'hover' | 'full';
-
-const shipImages: { path: string; width: number; height: number }[] = [
+const shipImageInfo: { path: string; width: number; height: number }[] = [
   { path: '/images/Ship 1 - Full.webp', width: 30, height: 81 },
   { path: '/images/Ship 2 - Full.webp', width: 30, height: 115 },
-  { path: '/images/Ship 2 - Full.webp', width: 30, height: 115 },
-  { path: '/images/Ship 3 - Full.webp', width: 30, height: 150 },
   { path: '/images/Ship 3 - Full.webp', width: 30, height: 150 },
   { path: '/images/Ship 4 - Full.webp', width: 30, height: 176 },
 ];
 
+type ShipData = { row: number; column: number; length: number; horizontal: boolean };
+
+type ShipBoardCell = 'empty' | 'hover' | 'full' | 'border';
+
+const generateShipBoard = (boardRows: number, boardColumns: number): ShipBoardCell[] => {
+  const board = Array<ShipBoardCell>(boardRows * boardColumns);
+
+  return board.fill('empty');
+};
+
+const getIndex = (row: number, column: number, boardColumns: number): number => {
+  return column + row * boardColumns;
+};
+
+const isShipTile = (
+  shipBoard: ShipBoardCell[],
+  boardColumns: number,
+  row: number,
+  column: number,
+): boolean => {
+  const index = getIndex(row, column, boardColumns);
+
+  return shipBoard[index] == 'full';
+};
+
+const canPlaceShip = (
+  shipBoard: ShipBoardCell[],
+  boardRows: number,
+  boardColumns: number,
+  ship: ShipData,
+): boolean => {
+  if (ship.horizontal && ship.column + ship.length > boardColumns) {
+    return false;
+  }
+
+  if (!ship.horizontal && ship.row + ship.length > boardRows) {
+    return false;
+  }
+
+  const minRow = Math.max(ship.row, 0);
+  const maxRow = Math.min(ship.row + (ship.horizontal ? 0 : ship.length - 1), boardRows - 1);
+  const minColumn = Math.max(ship.column, 0);
+  const maxColumn = Math.min(
+    ship.column + (ship.horizontal ? ship.length - 1 : 0),
+    boardColumns - 1,
+  );
+
+  for (let row = minRow; row <= maxRow; ++row) {
+    for (let column = minColumn; column <= maxColumn; ++column) {
+      const index = getIndex(row, column, boardColumns);
+
+      if (shipBoard[index] == 'full' || shipBoard[index] == 'border') {
+        return false;
+      }
+    }
+  }
+
+  return true;
+};
+
+const placeShip = (
+  shipBoard: ShipBoardCell[],
+  boardRows: number,
+  boardColumns: number,
+  ship: ShipData,
+): void => {
+  const minRowUnclamped = ship.row - 1;
+  const clampMinRow = minRowUnclamped < 0;
+  const minRow = clampMinRow ? 0 : minRowUnclamped;
+
+  const maxRowUnclamped = ship.row + (ship.horizontal ? 1 : ship.length);
+  const clampMaxRow = maxRowUnclamped > boardRows - 1;
+  const maxRow = clampMaxRow ? boardRows - 1 : maxRowUnclamped;
+
+  const minColumnUnclamped = ship.column - 1;
+  const clampMinColumn = minColumnUnclamped < 0;
+  const minColumn = clampMinColumn ? 0 : minColumnUnclamped;
+
+  const maxColumnUnclamped = ship.column + (ship.horizontal ? ship.length : 1);
+  const clampMaxColumn = maxColumnUnclamped > boardColumns - 1;
+  const maxColumn = clampMaxColumn ? boardColumns - 1 : maxColumnUnclamped;
+
+  for (let row = minRow; row <= maxRow; ++row) {
+    for (let column = minColumn; column <= maxColumn; ++column) {
+      const index = getIndex(row, column, boardColumns);
+
+      if (
+        (row > minRow || (clampMinRow && row == 0)) &&
+        (row < maxRow || (clampMaxRow && row == boardRows - 1)) &&
+        (column > minColumn || (clampMinColumn && column == 0)) &&
+        (column < maxColumn || (clampMaxColumn && column == boardColumns - 1))
+      ) {
+        shipBoard[index] = 'full';
+        continue;
+      }
+
+      shipBoard[index] = 'border';
+    }
+  }
+};
+
+const isShipAround = (
+  shipBoard: ShipBoardCell[],
+  boardRows: number,
+  boardColumns: number,
+  row: number,
+  column: number,
+): boolean => {
+  if (row > 0 && isShipTile(shipBoard, boardColumns, row - 1, column)) {
+    return true;
+  }
+
+  if (row < boardRows - 1 && isShipTile(shipBoard, boardColumns, row + 1, column)) {
+    return true;
+  }
+
+  if (column > 0 && isShipTile(shipBoard, boardColumns, row, column - 1)) {
+    return true;
+  }
+
+  if (column < boardColumns - 1 && isShipTile(shipBoard, boardColumns, row, column + 1)) {
+    return true;
+  }
+
+  if (row > 0 && column > 0 && isShipTile(shipBoard, boardColumns, row - 1, column - 1)) {
+    return true;
+  }
+
+  if (
+    row > 0 &&
+    column < boardColumns - 1 &&
+    isShipTile(shipBoard, boardColumns, row - 1, column + 1)
+  ) {
+    return true;
+  }
+
+  if (
+    row < boardRows - 1 &&
+    column < boardColumns - 1 &&
+    isShipTile(shipBoard, boardColumns, row + 1, column + 1)
+  ) {
+    return true;
+  }
+
+  if (
+    row < boardRows - 1 &&
+    column > 0 &&
+    isShipTile(shipBoard, boardColumns, row + 1, column - 1)
+  ) {
+    return true;
+  }
+
+  return false;
+};
+
+const removeShip = (
+  shipBoard: ShipBoardCell[],
+  boardRows: number,
+  boardColumns: number,
+  ship: ShipData,
+): void => {
+  const minRowUnclamped = ship.row - 1;
+  const clampMinRow = minRowUnclamped < 0;
+  const minRow = clampMinRow ? 0 : minRowUnclamped;
+
+  const maxRowUnclamped = ship.row + (ship.horizontal ? 1 : ship.length);
+  const clampMaxRow = maxRowUnclamped > boardRows - 1;
+  const maxRow = clampMaxRow ? boardRows - 1 : maxRowUnclamped;
+
+  const minColumnUnclamped = ship.column - 1;
+  const clampMinColumn = minColumnUnclamped < 0;
+  const minColumn = clampMinColumn ? 0 : minColumnUnclamped;
+
+  const maxColumnUnclamped = ship.column + (ship.horizontal ? ship.length : 1);
+  const clampMaxColumn = maxColumnUnclamped > boardColumns - 1;
+  const maxColumn = clampMaxColumn ? boardColumns - 1 : maxColumnUnclamped;
+
+  for (let row = minRow; row <= maxRow; ++row) {
+    for (let column = minColumn; column <= maxColumn; ++column) {
+      const index = column + row * boardColumns;
+
+      if (
+        (row > minRow || (clampMinRow && row == 0)) &&
+        (row < maxRow || (clampMaxRow && row == boardRows - 1)) &&
+        (column > minColumn || (clampMinColumn && column == 0)) &&
+        (column < maxColumn || (clampMaxColumn && column == boardColumns - 1))
+      ) {
+        shipBoard[index] = 'empty';
+      }
+
+      continue;
+    }
+  }
+
+  for (let row = minRow; row <= maxRow; ++row) {
+    for (let column = minColumn; column <= maxColumn; ++column) {
+      const index = column + row * boardColumns;
+
+      if (
+        (row > minRow || (clampMinRow && row == 0)) &&
+        (row < maxRow || (clampMaxRow && row == boardRows - 1)) &&
+        (column > minColumn || (clampMinColumn && column == 0)) &&
+        (column < maxColumn || (clampMaxColumn && column == boardColumns - 1))
+      ) {
+        continue;
+      }
+
+      if (!isShipAround(shipBoard, boardRows, boardColumns, row, column)) {
+        shipBoard[index] = 'empty';
+      }
+    }
+  }
+};
+
+const generateRandomShipData = (
+  boardRows: number,
+  boardColumns: number,
+  shipLengths: number[],
+): [ShipData[], ShipBoardCell[]] => {
+  const shipBoard = generateShipBoard(boardRows, boardColumns);
+  const shipData: ShipData[] = [];
+
+  for (const length of shipLengths) {
+    const maxIterations = boardRows * boardColumns * 0.5;
+
+    let shipPlaced: boolean = false;
+
+    for (let iteration = 0; iteration < maxIterations; ++iteration) {
+      const row = randomInteger(0, boardRows);
+      const column = randomInteger(0, boardColumns);
+      const horizontal = Math.random() > 0.5;
+      const ship: ShipData = { row, column, length, horizontal };
+
+      if (canPlaceShip(shipBoard, boardRows, boardColumns, ship)) {
+        placeShip(shipBoard, boardRows, boardColumns, ship);
+        shipData.push(ship);
+
+        shipPlaced = true;
+        break;
+      }
+    }
+
+    if (!shipPlaced) {
+      return generateRandomShipData(boardRows, boardColumns, shipLengths);
+    }
+  }
+
+  return [shipData, shipBoard];
+};
+
+type BoardCell = 'hidden' | 'empty' | 'ship-part' | 'ship-all';
+
+const generateBoard = (boardRows: number, boardColumns: number): BoardCell[] => {
+  const board = Array<BoardCell>(boardRows * boardColumns);
+
+  return board.fill('empty');
+};
+
+type GameState = 'ship-select' | 'player-select' | 'enemy-select';
+
+interface BoardButtonProps extends Omit<ComponentPropsWithRef<'button'>, 'children'> {
+  color: 'red' | 'green' | 'blue';
+  icon: ReactNode;
+  disableOnSetup?: boolean;
+}
+
+function BoardButton({ ref, color, icon, disableOnSetup, ...props }: BoardButtonProps) {
+  const colorToClassName = {
+    red: 'hover:border-red-500 *:hover:stroke-red-500',
+    green: 'hover:border-green-600 *:hover:stroke-green-600',
+    blue: 'hover:border-blue-500 *:hover:stroke-blue-500',
+  };
+
+  return (
+    <button
+      ref={ref}
+      className={`${colorToClassName[color]} ${disableOnSetup ? 'pointer-events-none opacity-25' : ''} grid aspect-square place-items-center rounded border-4 border-dark-800 p-3 transition ease-out *:h-full *:w-full *:stroke-dark-800 *:transition hover:scale-105`}
+      {...props}
+    >
+      {icon}
+    </button>
+  );
+}
+
 export default function Play() {
-  const boardWidth = 14;
-  const boardHeight = 14;
+  const boardRows = 14;
+  const boardColumns = 14;
+  const shipInfo: number[] = [0, 1, 1, 2, 2, 3];
 
-  const [board, setBoard] = useState<BoardCell[]>(() => {
-    const board = Array<BoardCell>(boardWidth * boardHeight);
+  const [gameState, setGameState] = useState<GameState>('ship-select');
+  const [playerShipData, setPlayerShipData] = useState<ShipData[]>([]);
+  const [playerBoard, setPlayerBoard] = useState<BoardCell[]>(() =>
+    generateBoard(boardRows, boardColumns),
+  );
+  const [enemyShipData, setEnemyShipData] = useState<ShipData[]>([]);
+  const [emenyBoard, setEnemyBoard] = useState<BoardCell[]>(() =>
+    generateBoard(boardRows, boardColumns),
+  );
+  const [shipBoard, setShipBoard] = useState(() => generateShipBoard(boardRows, boardColumns));
 
-    return board.fill('empty');
-  });
-
-  const shipRef = useRef<(HTMLImageElement | null)[]>([]);
-  const shipContainerRef = useRef<(HTMLDivElement | null)[]>([]);
-  const shipBoardRef = useRef<HTMLDivElement>(null);
+  const shipsRef = useRef<(HTMLImageElement | null)[]>([]);
+  const shipPlaceholdersRef = useRef<(HTMLDivElement | null)[]>([]);
+  const shipContainerRef = useRef<HTMLDivElement>(null);
   const playButtonRef = useRef<HTMLButtonElement>(null);
-  const randomButtonRef = useRef<HTMLButtonElement>(null);
-  const removeButtonRef = useRef<HTMLButtonElement>(null);
+  const shuffleButtonRef = useRef<HTMLButtonElement>(null);
+  const deleteButtonRef = useRef<HTMLButtonElement>(null);
+
+  const computeTileSize = (): number => {
+    const shipContainer = shipContainerRef.current!;
+    const shipContainerRect = shipContainer.getBoundingClientRect();
+
+    return shipContainerRect.width / boardColumns;
+  };
+
+  const getShipLenghts = (tileSize: number): number[] => {
+    return shipInfo.map(infoIndex => {
+      const imageInfo = shipImageInfo[infoIndex];
+
+      return Math.ceil(imageInfo.height / tileSize);
+    });
+  };
 
   useEffect(() => {
-    const ships = shipRef.current;
-    const shipContainer = shipContainerRef.current;
-    const shipBoard = shipBoardRef.current!;
+    const ships = [...shipsRef.current] as HTMLImageElement[];
+    const shipPlaceholders = [...shipPlaceholdersRef.current] as HTMLDivElement[];
+    const shipContainer = shipContainerRef.current!;
     const playButton = playButtonRef.current!;
-    const randomButton = randomButtonRef.current!;
-    const removeButton = removeButtonRef.current!;
-
-    const shipsPlaced = new Set<HTMLImageElement>();
 
     let dragging: { ship: HTMLImageElement; offsetX: number; offsetY: number } | false = false;
     let valid: boolean = false;
 
-    const playButtonClickEvent = (): void => {
-      alert('play');
-    };
-
-    const randomButtonClickEvent = (): void => {
-      const newBoard = board.map<BoardCell>(() => 'empty');
-
-      const canPlaceShip = (
-        startRow: number,
-        startColumn: number,
-        length: number,
-      ): boolean => {
-        for (let i = 0; i < length; ++i) {
-          const row = startRow + i;
-          const column = startColumn;
-          const index = column + row * boardHeight;
-
-          if (row >= boardHeight || column >= boardWidth || newBoard[index] == 'full') {
-            return false;
-          }
-
-          for (let borderRow = -1; borderRow <= 1; ++borderRow) {
-            for (let borderColumn = -1; borderColumn <= 1; ++borderColumn) {
-              const nextRow = row + borderRow;
-              const nextColumn = column + borderColumn;
-              const index = nextColumn + nextRow * boardHeight;
-
-              if (
-                nextRow >= 0 &&
-                nextRow < boardHeight &&
-                nextColumn >= 0 &&
-                nextColumn < boardWidth &&
-                newBoard[index] == 'full'
-              ) {
-                return false;
-              }
-            }
-          }
-        }
-
-        return true;
-      };
-
-      const placeShip = (
-        ship: HTMLImageElement,
-        startRow: number,
-        startColumn: number,
-        length: number,
-      ): void => {
-        const boardRect = shipBoard.getBoundingClientRect();
-        const shipRect = ship.getBoundingClientRect();
-
-        const tileSize = boardRect.width / boardWidth;
-        const left = startColumn * tileSize;
-        const top = startRow * tileSize;
-
-        const [leftSnapped, topSnapped] = snapRectToGrid(
-          left,
-          top,
-          shipRect.width,
-          shipRect.height,
-          tileSize,
-        );
-
-        ship.style.left = `${leftSnapped}px`;
-        ship.style.top = `${topSnapped}px`;
-        shipBoard.append(ship);
-        shipsPlaced.add(ship);
-
-        for (let i = 0; i < length; ++i) {
-          const row = startRow + i;
-          const column = startColumn;
-          const index = column + row * boardHeight;
-
-          newBoard[index] = 'full';
-        }
-      };
-
-      for (const ship of ships) {
-        const boardRect = shipBoard.getBoundingClientRect();
-        const tileSize = boardRect.width / boardWidth;
-
-        const shipRect = ship!.getBoundingClientRect();
-        const length = Math.ceil(shipRect.height / tileSize);
-
-        while (true) {
-          const startRow = Math.floor(Math.random() * boardHeight);
-          const startColumn = Math.floor(Math.random() * boardWidth);
-
-          if (canPlaceShip(startRow, startColumn, length)) {
-            placeShip(ship!, startRow, startColumn, length);
-
-            break;
-          }
-        }
-      }
-
-      setBoard(newBoard);
-
-      playButton.classList.remove('opacity-25', 'pointer-events-none');
-    };
-
-    const removeButtonClickEvent = (): void => {
-      setBoard(board => board.map<BoardCell>(() => 'empty'));
-
-      for (let i = 0; i < ships.length; ++i) {
-        const ship = ships[i]!;
-        const container = shipContainer[i]!;
-
-        ship.style.left = '';
-        ship.style.top = '';
-        container.append(ship);
-      }
-
-      shipsPlaced.clear();
-      playButton.classList.add('opacity-25', 'pointer-events-none');
-    };
-
-    const handleShipMove = (event: MouseEvent): void => {
+    const documentMousemouseEvent = (event: MouseEvent): void => {
       if (!dragging) return;
 
       const { ship, offsetX, offsetY } = dragging;
@@ -173,8 +358,7 @@ export default function Play() {
       ship.style.left = `${event.x - offsetX}px`;
       ship.style.top = `${event.y - offsetY}px`;
 
-      const boardRect = shipBoard.getBoundingClientRect();
-      const shipRect = ship.getBoundingClientRect();
+      const boardRect = shipContainer.getBoundingClientRect();
 
       valid = pointInsideRect(
         event.x - offsetX,
@@ -185,69 +369,40 @@ export default function Play() {
         boardRect.height,
       );
 
-      setBoard(board => {
-        const newBoard = board.map<BoardCell>(cell => (cell == 'hover' ? 'empty' : cell));
-
-        if (!valid) {
-          return newBoard;
-        }
-
-        const left = event.x - boardRect.left - offsetX;
-        const top = event.y - boardRect.top - offsetY;
-        const tileSize = boardRect.width / boardWidth;
-
-        const [leftSnapped, topSnapped] = snapRectToGrid(
-          left,
-          top,
-          shipRect.width,
-          shipRect.height,
-          tileSize,
+      setShipBoard(previous => {
+        const shipBoard = previous.map<ShipBoardCell>(cell =>
+          cell == 'hover' ? 'empty' : cell,
         );
 
-        const [startRow, startColumn] = getTileLocation(leftSnapped, topSnapped, tileSize);
-        const shipTileHeight = Math.ceil(shipRect.height / tileSize);
-
-        if (startRow + shipTileHeight > boardHeight) {
-          valid = false;
-
-          return newBoard;
+        if (!valid) {
+          return shipBoard;
         }
 
-        for (let i = 0; i < shipTileHeight; ++i) {
-          const row = startRow + i;
-          const column = startColumn;
-          const index = column + row * boardHeight;
+        const tileSize = computeTileSize();
+        const x = event.x - boardRect.left - offsetX;
+        const y = event.y - boardRect.top - offsetY;
 
-          if (newBoard[index] == 'full') {
-            valid = false;
+        const [row, column] = getTileLocation(x, y, tileSize);
 
-            return newBoard;
-          }
+        const lengths = getShipLenghts(tileSize);
+        const index = Number(ship.dataset['index']);
+        const length = lengths[index];
 
-          for (let borderRow = -1; borderRow <= 1; ++borderRow) {
-            for (let borderColumn = -1; borderColumn <= 1; ++borderColumn) {
-              const nextRow = row + borderRow;
-              const nextColumn = column + borderColumn;
-              const index = nextColumn + nextRow * boardHeight;
+        const shipData: ShipData = { row, column, length, horizontal: false };
 
-              if (
-                nextRow >= 0 &&
-                nextRow < boardHeight &&
-                nextColumn >= 0 &&
-                nextColumn < boardWidth &&
-                newBoard[index] == 'full'
-              ) {
-                valid = false;
+        valid = canPlaceShip(shipBoard, boardRows, boardColumns, shipData);
 
-                return newBoard;
-              }
-            }
-          }
-
-          newBoard[index] = 'hover';
+        if (!valid) {
+          return shipBoard;
         }
 
-        return newBoard;
+        for (let i = 0; i < length; ++i) {
+          const index = column + (row + i) * boardColumns;
+
+          shipBoard[index] = 'hover';
+        }
+
+        return shipBoard;
       });
     };
 
@@ -255,45 +410,48 @@ export default function Play() {
       const ship = event.target as HTMLImageElement;
 
       const shipRect = ship.getBoundingClientRect();
-      const boardRect = shipBoard.getBoundingClientRect();
+      const boardRect = shipContainer.getBoundingClientRect();
 
       const offsetX = event.x - shipRect.left;
       const offsetY = event.y - shipRect.top;
 
-      if (ship.parentElement == shipBoard) {
-        shipsPlaced.delete(ship);
-        playButton.classList.add('opacity-25', 'pointer-events-none');
+      if (ship.parentElement == shipContainer) {
+        const tileSize = computeTileSize();
+        const x = event.x - boardRect.left - offsetX;
+        const y = event.y - boardRect.top - offsetY;
 
-        setBoard(board => {
-          const newBoard = [...board];
+        const [row, column] = getTileLocation(x, y, tileSize);
 
-          const left = parseInt(ship.style.left) - boardRect.left;
-          const top = parseInt(ship.style.top) - boardRect.top;
-          const tileSize = boardRect.width / boardWidth;
+        const lengths = getShipLenghts(tileSize);
+        const index = Number(ship.dataset['index']);
+        const length = lengths[index];
 
-          const [row, column] = getTileLocation(left, top, tileSize);
-          const shipTileHeight = Math.ceil(shipRect.height / tileSize);
+        const horizontal = ship.classList.contains('-rotate-90');
 
-          for (let i = 0; i < shipTileHeight; ++i) {
-            const index = column + (row + i) * boardHeight;
+        const shipData: ShipData = { row, column, length, horizontal };
 
-            newBoard[index] = 'empty';
-          }
+        setPlayerShipData(previous => {
+          const newShipData = previous.map(data => ({ ...data }));
 
-          return newBoard;
+          return newShipData.filter(
+            data => data.row != shipData.row || data.column != shipData.column,
+          );
+        });
+
+        setShipBoard(previous => {
+          const shipBoard = [...previous];
+
+          removeShip(shipBoard, boardRows, boardColumns, shipData);
+
+          return shipBoard;
         });
       }
 
       dragging = { ship, offsetX, offsetY };
+      ship.classList.remove('-rotate-90', 'origin-[top_center]');
       document.body.append(ship);
 
-      handleShipMove(event);
-    };
-
-    const documentMousemoveEvent = (event: MouseEvent): void => {
-      if (!dragging) return;
-
-      handleShipMove(event);
+      documentMousemouseEvent(event);
     };
 
     const documentMouseupEvent = (event: MouseEvent): void => {
@@ -301,54 +459,55 @@ export default function Play() {
 
       const { ship, offsetX, offsetY } = dragging;
 
-      const boardRect = shipBoard.getBoundingClientRect();
-      const shipRect = ship.getBoundingClientRect();
-
       if (valid) {
-        const left = event.x - boardRect.left - offsetX;
-        const top = event.y - boardRect.top - offsetY;
-        const tileSize = boardRect.width / boardWidth;
+        const boardRect = shipContainer.getBoundingClientRect();
 
-        const [leftSnapped, topSnapped] = snapRectToGrid(
-          left,
-          top,
-          shipRect.width,
-          shipRect.height,
+        const tileSize = computeTileSize();
+        const x = event.x - boardRect.left - offsetX;
+        const y = event.y - boardRect.top - offsetY;
+
+        const [row, column] = getTileLocation(x, y, tileSize);
+
+        const [left, top] = centerPointToTile(
+          column * tileSize,
+          row * tileSize,
+          ship.width,
+          ship.height,
           tileSize,
+          false,
         );
+        ship.style.left = `${left}px`;
+        ship.style.top = `${top}px`;
+        shipContainer.append(ship);
 
-        setBoard(board => {
-          const newBoard = [...board];
+        const lengths = getShipLenghts(tileSize);
+        const index = Number(ship.dataset['index']);
+        const length = lengths[index];
 
-          const [startRow, startColumn] = getTileLocation(leftSnapped, topSnapped, tileSize);
-          const shipTileHeight = Math.ceil(shipRect.height / tileSize);
+        const shipData: ShipData = { row, column, length, horizontal: false };
 
-          for (let i = 0; i < shipTileHeight; ++i) {
-            const row = startRow + i;
-            const column = startColumn;
-            const index = column + row * boardHeight;
+        setPlayerShipData(previous => {
+          const newShipData = previous.map(data => ({ ...data }));
 
-            newBoard[index] = 'full';
-          }
+          newShipData.push(shipData);
 
-          return newBoard;
+          return newShipData;
         });
 
-        ship.style.left = `${leftSnapped}px`;
-        ship.style.top = `${topSnapped}px`;
-        shipBoard.append(ship);
+        setShipBoard(previous => {
+          const shipBoard = [...previous];
 
-        shipsPlaced.add(ship);
-        if (shipsPlaced.size == ships.length) {
-          playButton.classList.remove('opacity-25', 'pointer-events-none');
-        }
+          placeShip(shipBoard, boardRows, boardColumns, shipData);
+
+          return shipBoard;
+        });
       } else {
-        const index = Number(ship.id.substring(5));
-        const container = shipContainer[index]!;
+        const index = Number(ship.dataset['index']);
+        const shipPlaceholder = shipPlaceholders[index];
 
         ship.style.left = '';
         ship.style.top = '';
-        container.append(ship);
+        shipPlaceholder.append(ship);
       }
 
       dragging = false;
@@ -359,55 +518,144 @@ export default function Play() {
       passive: true /* enable performance optimizations */,
     };
 
-    playButton.addEventListener('click', playButtonClickEvent, eventOptions);
-    randomButton.addEventListener('click', randomButtonClickEvent, eventOptions);
-    removeButton.addEventListener('click', removeButtonClickEvent, eventOptions);
-
     for (const ship of ships) {
-      ship!.addEventListener('mousedown', shipMousedownEvent, eventOptions);
+      ship.addEventListener('mousedown', shipMousedownEvent, eventOptions);
     }
 
-    document.addEventListener('mousemove', documentMousemoveEvent, eventOptions);
+    document.addEventListener('mousemove', documentMousemouseEvent, eventOptions);
     document.addEventListener('mouseup', documentMouseupEvent, eventOptions);
 
-    return (): void => {
-      playButton.removeEventListener('click', playButtonClickEvent, eventOptions);
-      randomButton.removeEventListener('click', randomButtonClickEvent, eventOptions);
-      removeButton.removeEventListener('click', removeButtonClickEvent, eventOptions);
-
+    const dispose = (): void => {
       for (const ship of ships) {
-        ship?.removeEventListener('mousedown', shipMousedownEvent);
+        ship.removeEventListener('mousedown', shipMousedownEvent, eventOptions);
       }
 
-      document.removeEventListener('mousemove', documentMousemoveEvent);
-      document.removeEventListener('mouseup', documentMouseupEvent);
+      document.removeEventListener('mousemove', documentMousemouseEvent, eventOptions);
+      document.removeEventListener('mouseup', documentMouseupEvent, eventOptions);
+    };
+
+    playButton.addEventListener('click', dispose, eventOptions);
+
+    return (): void => {
+      dispose();
+
+      playButton.removeEventListener('click', dispose, eventOptions);
     };
   }, []);
 
+  useEffect(() => {
+    const playButton = playButtonRef.current!;
+
+    if (playerShipData.length == shipInfo.length) {
+      playButton.classList.remove('pointer-events-none', 'opacity-25');
+      return;
+    }
+
+    playButton.classList.add('pointer-events-none', 'opacity-25');
+  }, [playerShipData]);
+
+  const playGame = (): void => {
+    const playButton = playButtonRef.current!;
+    const shuffleButton = shuffleButtonRef.current!;
+    const deleteButton = deleteButtonRef.current!;
+
+    playButton.classList.add('pointer-events-none', 'opacity-25');
+    shuffleButton.classList.add('pointer-events-none', 'opacity-25');
+    deleteButton.classList.add('pointer-events-none', 'opacity-25');
+
+    const tileSize = computeTileSize();
+    const shipLenghts = getShipLenghts(tileSize);
+
+    const [enemyShipData] = generateRandomShipData(boardRows, boardColumns, shipLenghts);
+    setEnemyShipData(enemyShipData);
+
+    setGameState(Math.random() > 0.5 ? 'player-select' : 'enemy-select');
+  };
+
+  const deleteShips = (): void => {
+    const ships = shipsRef.current as HTMLImageElement[];
+    const shipPlaceholders = shipPlaceholdersRef.current as HTMLDivElement[];
+
+    for (const ship of ships) {
+      const index = Number(ship.dataset['index']);
+      const shipPlaceholder = shipPlaceholders[index];
+
+      ship.style.left = '';
+      ship.style.top = '';
+      ship.classList.remove('-rotate-90', 'origin-[top_center]');
+      shipPlaceholder.append(ship);
+    }
+
+    setPlayerShipData([]);
+    setShipBoard(generateShipBoard(boardRows, boardColumns));
+  };
+
+  const shuffleShips = (): void => {
+    deleteShips();
+
+    const tileSize = computeTileSize();
+    const shipLenghts = getShipLenghts(tileSize);
+
+    const [shipData, shipBoard] = generateRandomShipData(boardRows, boardColumns, shipLenghts);
+
+    const shipContainer = shipContainerRef.current!;
+
+    shipData.forEach((data, index) => {
+      const ship = shipsRef.current[index]!;
+
+      const [left, top] = centerPointToTile(
+        data.column * tileSize,
+        data.row * tileSize,
+        ship.width,
+        ship.height,
+        tileSize,
+        data.horizontal,
+      );
+
+      ship.style.left = `${left}px`;
+      ship.style.top = `${top}px`;
+
+      if (data.horizontal) {
+        ship.classList.add('-rotate-90', 'origin-[top_center]');
+      }
+
+      shipContainer.append(ship);
+    });
+
+    setPlayerShipData(shipData);
+    setShipBoard(shipBoard);
+  };
+
   return (
     <div className="grid h-full place-items-center">
-      <main className="grid grid-cols-[1fr_5fr_1fr] gap-8 rounded-lg bg-light-200 px-8 py-8 shadow-[8px_8px_0_0_theme(colors.dark.800)] drop-shadow-2xl lg:gap-16 lg:px-16">
+      <main className="grid grid-cols-[1fr_5fr_1fr] gap-8 rounded-lg bg-light-100 px-8 py-8 shadow-[8px_8px_0_0_theme(colors.dark.800)] drop-shadow-2xl lg:gap-16 lg:px-16">
         <section
           className="grid place-items-center gap-4"
-          style={{ gridTemplateColumns: `repeat(${shipImages.length / 3}, 1fr)` }}
+          style={{ gridTemplateColumns: `repeat(${shipInfo.length / 3}, 1fr)` }}
         >
-          {shipImages.map((ship, index) => (
+          {shipInfo.map((imageIndex, index) => (
             <div
-              ref={instance => void (shipContainerRef.current[index] = instance)}
+              ref={instance => void (shipPlaceholdersRef.current[index] = instance)}
               className="relative"
-              style={{ width: ship.width, height: ship.height }}
+              style={{
+                width: shipImageInfo[imageIndex].width,
+                height: shipImageInfo[imageIndex].height,
+              }}
               key={index}
             >
               <Image
-                ref={instance => void (shipRef.current[index] = instance)}
-                src={ship.path}
-                width={ship.width}
-                height={ship.height}
+                ref={instance => void (shipsRef.current[index] = instance)}
+                src={shipImageInfo[imageIndex].path}
+                width={shipImageInfo[imageIndex].width}
+                height={shipImageInfo[imageIndex].height}
                 alt="Ship"
                 draggable="false"
-                id={`ship-${index}`}
+                data-index={index}
                 className="absolute cursor-pointer select-none"
-                style={{ width: ship.width, height: ship.height }}
+                style={{
+                  width: shipImageInfo[imageIndex].width,
+                  height: shipImageInfo[imageIndex].height,
+                }}
               />
             </div>
           ))}
@@ -421,44 +669,48 @@ export default function Play() {
               id="tile-grid"
               className="relative grid aspect-square h-[30rem] rounded border-2 border-dark-800"
               style={{
-                gridTemplateRows: `repeat(${boardWidth}, 1fr)`,
-                gridTemplateColumns: `repeat(${boardHeight}, 1fr)`,
+                gridTemplateRows: `repeat(${boardRows}, 1fr)`,
+                gridTemplateColumns: `repeat(${boardColumns}, 1fr)`,
               }}
             >
-              {board.map((cell, index) => (
+              {shipBoard.map((cell, index) => (
                 <div
-                  className={`${cell == 'hover' ? 'bg-light-400' : ''} border border-dark-800`}
+                  className={`${cell == 'hover' ? 'bg-light-400' : ''} ${cell == 'full' ? 'bg-orange-200' : ''} ${cell == 'border' ? 'bg-orange-300' : ''} border border-dark-800`}
                   key={index}
                 ></div>
               ))}
 
-              <div ref={shipBoardRef} className="absolute h-full w-full"></div>
+              <div
+                ref={shipContainerRef}
+                className="absolute h-full w-full overflow-hidden"
+              ></div>
             </div>
           </div>
         </div>
 
         <section className="flex flex-col justify-around gap-4 px-1">
-          <button
+          <BoardButton
             ref={playButtonRef}
-            title="Start game"
-            className="pointer-events-none grid aspect-square place-items-center rounded border-4 border-dark-800 p-3 opacity-25 transition ease-out *:stroke-dark-800 hover:scale-105 hover:border-blue-500 *:hover:stroke-blue-500"
-          >
-            <PlayIcon strokeWidth={2.8} className="h-full w-full" />
-          </button>
-          <button
-            ref={randomButtonRef}
-            title="Place ships in random order"
-            className="grid aspect-square place-items-center rounded border-4 border-dark-800 p-3 transition ease-out *:stroke-dark-800 hover:scale-105 hover:border-green-600 *:hover:stroke-green-600"
-          >
-            <ShuffleIcon strokeWidth={2.8} className="h-full w-full" />
-          </button>
-          <button
-            ref={removeButtonRef}
-            title="Remove all ships from the board"
-            className="grid aspect-square place-items-center rounded border-4 border-dark-800 p-3 transition ease-out *:stroke-dark-800 hover:scale-105 hover:border-red-500 *:hover:stroke-red-500"
-          >
-            <Trash2Icon strokeWidth={2.8} className="h-full w-full" />
-          </button>
+            color="blue"
+            icon={<PlayIcon strokeWidth={2.8} />}
+            disableOnSetup={true}
+            title="Start the game"
+            onClick={playGame}
+          />
+          <BoardButton
+            ref={shuffleButtonRef}
+            color="green"
+            icon={<ShuffleIcon strokeWidth={2.8} />}
+            title="Shuffle ships in random order"
+            onClick={shuffleShips}
+          />
+          <BoardButton
+            ref={deleteButtonRef}
+            color="red"
+            icon={<Trash2Icon strokeWidth={2.8} />}
+            title="Delete all ships from the board"
+            onClick={deleteShips}
+          />
         </section>
       </main>
     </div>

@@ -1,6 +1,6 @@
 # TODO List
 
-- [ ] Add ability to rotate ships
+- [x] Add ability to rotate ships
 - [ ] Add slick animations
 - [ ] Keep everything **extremely** mobile-friendly
 - [ ] Use custom target as cursor

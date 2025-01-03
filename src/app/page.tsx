@@ -54,6 +54,8 @@ export default function Home() {
   };
 
   const startGame = (): void => {
+    if (avatar === null) return;
+
     const usernameValue = usernameRef.current!.value;
     setLastUsername(usernameValue);
     const username = usernameValue || defaultUsername;
@@ -65,7 +67,7 @@ export default function Home() {
 
   return (
     <div className="grid h-full place-items-center">
-      <main className="rounded-lg bg-light-200 p-6 shadow-[8px_8px_0_0_theme(colors.dark.800)] drop-shadow-2xl lg:p-12">
+      <main className="rounded-lg bg-light-100 p-6 shadow-[8px_8px_0_0_theme(colors.dark.800)] drop-shadow-2xl lg:p-12">
         <div className="grid grid-rows-[1fr_0.2rem_1fr] gap-8 md:grid-cols-[1fr_0.2rem_1fr] md:grid-rows-none md:gap-12">
           <div className="flex flex-col items-center gap-8">
             <div className="relative flex">
@@ -82,7 +84,7 @@ export default function Home() {
               </div>
 
               <div
-                className="absolute left-32 top-32 rotate-180 cursor-pointer rounded-full bg-light-100 p-2 *:stroke-dark-800 hover:scale-110"
+                className="bg-light absolute left-32 top-32 rotate-180 cursor-pointer rounded-full p-2 *:stroke-dark-800 hover:scale-110"
                 onClick={nextAvatar}
               >
                 <RotateCwIcon size={30} strokeWidth={3.2} />
@@ -107,13 +109,13 @@ export default function Home() {
                 className={`${opponent == 'computer' ? 'after:translate-x-full' : ''} relative grid cursor-pointer grid-cols-2 rounded border-[3px] border-dark-800 text-lg after:absolute after:h-full after:w-1/2 after:bg-dark-800 after:transition-transform after:ease-out`}
               >
                 <div
-                  className={`${opponent == 'user' ? 'text-light-100' : ''} relative z-[1] px-4 py-2 text-center transition-colors`}
+                  className={`${opponent == 'user' ? 'text-light' : ''} relative z-[1] px-4 py-2 text-center transition-colors`}
                   onClick={() => setOpponent('user')}
                 >
                   Gracz
                 </div>
                 <div
-                  className={`${opponent == 'computer' ? 'text-light-100' : ''} relative z-[1] px-4 py-2 text-center transition-colors`}
+                  className={`${opponent == 'computer' ? 'text-light' : ''} relative z-[1] px-4 py-2 text-center transition-colors`}
                   onClick={() => setOpponent('computer')}
                 >
                   Komputer
