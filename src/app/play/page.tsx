@@ -11,7 +11,7 @@ import {
 } from 'react';
 import { PlayIcon, ShuffleIcon, Trash2Icon } from 'lucide-react';
 
-import { randomInteger, wait } from '@/utils';
+import { randomBoolean, randomInteger, randomItem, wait } from '@/utils';
 
 const shipImageInfo: { path: string; width: number; height: number }[] = [
   { path: '/images/Ship 1 - Full.webp', width: 30, height: 81 },
@@ -71,6 +71,13 @@ const generateShipBoard = (boardRows: number, boardColumns: number): ShipBoardCe
 
 const getIndex = (row: number, column: number, boardColumns: number): number => {
   return column + row * boardColumns;
+};
+
+export const getRowColumn = (index: number, boardColumns: number): [number, number] => {
+  const row = Math.floor(index / boardColumns);
+  const column = index % boardColumns;
+
+  return [row, column];
 };
 
 const isShipTile = (
@@ -289,7 +296,7 @@ const generateRandomShipData = (
     for (let iteration = 0; iteration < maxIterations; ++iteration) {
       const row = randomInteger(0, boardRows);
       const column = randomInteger(0, boardColumns);
-      const horizontal = Math.random() > 0.5;
+      const horizontal = randomBoolean();
       const ship: ShipData = { row, column, length, horizontal };
 
       if (canPlaceShip(shipBoard, boardRows, boardColumns, ship)) {
@@ -309,7 +316,7 @@ const generateRandomShipData = (
   return [shipData, shipBoard];
 };
 
-type BoardCell = 'hidden' | 'empty' | 'ship-part';
+type BoardCell = 'hidden' | 'empty' | 'ship-part' | 'ship-all';
 
 const generateBoard = (boardRows: number, boardColumns: number): BoardCell[] => {
   const board = Array<BoardCell>(boardRows * boardColumns);
@@ -317,19 +324,82 @@ const generateBoard = (boardRows: number, boardColumns: number): BoardCell[] => 
   return board.fill('hidden');
 };
 
-const canHitShip = (row: number, column: number, ships: ShipData[]): 'empty' | 'ship-part' => {
-  for (const ship of ships) {
-    for (let i = 0; i < ship.length; ++i) {
-      const shipRow = ship.row + (ship.horizontal ? 0 : i);
-      const shipColumn = ship.column + (ship.horizontal ? i : 0);
+const hitBoard = (
+  board: BoardCell[],
+  boardRows: number,
+  boardColumns: number,
+  hitRow: number,
+  hitColumn: number,
+  ships: ShipData[],
+): BoardCell[] => {
+  const newBoard = [...board];
 
-      if (row == shipRow && column == shipColumn) {
-        return 'ship-part';
+  for (const ship of ships) {
+    let found: boolean = false;
+    let hitAll: boolean = true;
+
+    for (let i = 0; i < ship.length; ++i) {
+      const row = ship.row + (ship.horizontal ? 0 : i);
+      const column = ship.column + (ship.horizontal ? i : 0);
+      const index = getIndex(row, column, boardColumns);
+
+      if (row == hitRow && column == hitColumn) {
+        newBoard[index] = 'ship-part';
+        found = true;
+      }
+
+      if (newBoard[index] == 'hidden') {
+        hitAll = false;
       }
     }
+
+    if (!found) continue;
+
+    if (!hitAll) {
+      return newBoard;
+    }
+
+    const minRowUnclamped = ship.row - 1;
+    const clampMinRow = minRowUnclamped < 0;
+    const minRow = clampMinRow ? 0 : minRowUnclamped;
+
+    const maxRowUnclamped = ship.row + (ship.horizontal ? 1 : ship.length);
+    const clampMaxRow = maxRowUnclamped > boardRows - 1;
+    const maxRow = clampMaxRow ? boardRows - 1 : maxRowUnclamped;
+
+    const minColumnUnclamped = ship.column - 1;
+    const clampMinColumn = minColumnUnclamped < 0;
+    const minColumn = clampMinColumn ? 0 : minColumnUnclamped;
+
+    const maxColumnUnclamped = ship.column + (ship.horizontal ? ship.length : 1);
+    const clampMaxColumn = maxColumnUnclamped > boardColumns - 1;
+    const maxColumn = clampMaxColumn ? boardColumns - 1 : maxColumnUnclamped;
+
+    for (let row = minRow; row <= maxRow; ++row) {
+      for (let column = minColumn; column <= maxColumn; ++column) {
+        const index = getIndex(row, column, boardColumns);
+
+        if (
+          (row > minRow || (clampMinRow && row == 0)) &&
+          (row < maxRow || (clampMaxRow && row == boardRows - 1)) &&
+          (column > minColumn || (clampMinColumn && column == 0)) &&
+          (column < maxColumn || (clampMaxColumn && column == boardColumns - 1))
+        ) {
+          newBoard[index] = 'ship-all';
+          continue;
+        }
+
+        newBoard[index] = 'empty';
+      }
+    }
+
+    return newBoard;
   }
 
-  return 'empty';
+  const index = getIndex(hitRow, hitColumn, boardColumns);
+  newBoard[index] = 'empty';
+
+  return newBoard;
 };
 
 const enemyAI = (
@@ -338,10 +408,321 @@ const enemyAI = (
   boardColumns: number,
   shipLengths: number[],
 ): [number, number] => {
-  const row = randomInteger(0, boardRows);
-  const column = randomInteger(0, boardColumns);
+  type Direction = 'left' | 'right' | 'top' | 'down';
 
-  return [row, column];
+  const getCell = (row: number, column: number): BoardCell => {
+    return board[getIndex(row, column, boardColumns)];
+  };
+
+  const isValid = (row: number, column: number): boolean => {
+    return row >= 0 && row < boardRows && column >= 0 && column < boardColumns;
+  };
+
+  const invertDirection = (direction: Direction): Direction => {
+    switch (direction) {
+      case 'left':
+        return 'right';
+      case 'right':
+        return 'left';
+      case 'top':
+        return 'down';
+      case 'down':
+        return 'top';
+    }
+  };
+
+  const moveInDirection = (
+    row: number,
+    column: number,
+    distance: number,
+    direction: Direction,
+  ): [number, number] => {
+    switch (direction) {
+      case 'left':
+        return [row, column - distance];
+      case 'right':
+        return [row, column + distance];
+      case 'top':
+        return [row - distance, column];
+      case 'down':
+        return [row + distance, column];
+    }
+  };
+
+  const isAround = (row: number, column: number, cell: BoardCell): Direction | false => {
+    if (row > 0 && getCell(row - 1, column) == cell) {
+      return 'top';
+    }
+
+    if (row < boardRows - 1 && getCell(row + 1, column) == cell) {
+      return 'down';
+    }
+
+    if (column > 0 && getCell(row, column - 1) == cell) {
+      return 'left';
+    }
+
+    if (column < boardColumns - 1 && getCell(row, column + 1) == cell) {
+      return 'right';
+    }
+
+    return false;
+  };
+
+  const getDistance = (row: number, column: number, direction: Direction): number => {
+    const firstCell = getCell(row, column);
+    let distance: number = 0;
+
+    while (true) {
+      row += direction == 'top' ? -1 : direction == 'down' ? 1 : 0;
+      column += direction == 'left' ? -1 : direction == 'right' ? 1 : 0;
+
+      if (!isValid(row, column)) break;
+
+      const cell = getCell(row, column);
+
+      if (cell != firstCell) break;
+
+      distance += 1;
+    }
+
+    return distance;
+  };
+
+  const bestMoveWithTwoShipParts = (
+    originRow: number,
+    originColumn: number,
+    startDirection: Direction,
+  ): [number, number] => {
+    const [shipRowStart, shipColumnStart] = moveInDirection(
+      originRow,
+      originColumn,
+      getDistance(originRow, originColumn, startDirection),
+      startDirection,
+    );
+    const [rowStartBorder, columnStartBorder] = moveInDirection(
+      shipRowStart,
+      shipColumnStart,
+      1,
+      startDirection,
+    );
+
+    let startBorderDistance: number = -1;
+    if (
+      isValid(rowStartBorder, columnStartBorder) &&
+      getCell(rowStartBorder, columnStartBorder) == 'hidden'
+    ) {
+      startBorderDistance = getDistance(rowStartBorder, columnStartBorder, startDirection);
+    }
+
+    const endDirection = invertDirection(startDirection);
+    const [shipRowEnd, shipColumnEnd] = moveInDirection(
+      originRow,
+      originColumn,
+      getDistance(originRow, originColumn, endDirection),
+      endDirection,
+    );
+    const [rowEndBorder, columnEndBorder] = moveInDirection(
+      shipRowEnd,
+      shipColumnEnd,
+      1,
+      endDirection,
+    );
+
+    let endBorderDistance: number = -1;
+    if (
+      isValid(rowEndBorder, columnEndBorder) &&
+      getCell(rowEndBorder, columnEndBorder) == 'hidden'
+    ) {
+      endBorderDistance = getDistance(rowEndBorder, columnEndBorder, endDirection);
+    }
+
+    if (startBorderDistance > endBorderDistance) {
+      return [rowStartBorder, columnStartBorder];
+    }
+
+    if (endBorderDistance > startBorderDistance) {
+      return [rowEndBorder, columnEndBorder];
+    }
+
+    if (randomBoolean()) {
+      return [rowStartBorder, columnStartBorder];
+    }
+
+    return [rowEndBorder, columnEndBorder];
+  };
+
+  const bestMoveWithOneShipPart = (
+    originRow: number,
+    originColumn: number,
+    horizontalProbability: number = 0.3,
+  ): [number, number] => {
+    const [leftRow, leftColumn] = moveInDirection(originRow, originColumn, 1, 'left');
+    const [rightRow, rightColumn] = moveInDirection(originRow, originColumn, 1, 'right');
+    const [topRow, topColumn] = moveInDirection(originRow, originColumn, 1, 'top');
+    const [downRow, downColumn] = moveInDirection(originRow, originColumn, 1, 'down');
+
+    let leftDistance = -1;
+    if (isValid(leftRow, leftColumn) && getCell(leftRow, leftColumn) == 'hidden') {
+      leftDistance = getDistance(leftRow, leftColumn, 'left');
+    }
+
+    let rightDistance = -1;
+    if (isValid(rightRow, rightColumn) && getCell(rightRow, rightColumn) == 'hidden') {
+      rightDistance = getDistance(rightRow, rightColumn, 'right');
+    }
+
+    let topDistance = -1;
+    if (isValid(topRow, topColumn) && getCell(topRow, topColumn) == 'hidden') {
+      topDistance = getDistance(topRow, topColumn, 'top');
+    }
+
+    let downDistance = -1;
+    if (isValid(downRow, downColumn) && getCell(downRow, downColumn) == 'hidden') {
+      downDistance = getDistance(downRow, downColumn, 'down');
+    }
+
+    const selectLargest = (): Direction => {
+      const distances: { direction: Direction; value: number }[] = [
+        { direction: 'left', value: leftDistance },
+        { direction: 'right', value: rightDistance },
+        { direction: 'top', value: topDistance },
+        { direction: 'down', value: downDistance },
+      ];
+
+      const maxDistance = Math.max(leftDistance, rightDistance, topDistance, downDistance);
+      const candidates = distances.filter(d => d.value == maxDistance);
+      const horizontal = candidates.filter(
+        d => d.direction == 'left' || d.direction == 'right',
+      );
+      const vertical = candidates.filter(d => d.direction == 'top' || d.direction == 'down');
+
+      if (horizontal.length > 0 && vertical.length > 0) {
+        const isHorizontalChosen = Math.random() < horizontalProbability;
+
+        if (isHorizontalChosen && horizontal.length > 0) {
+          return randomItem(horizontal).direction;
+        }
+
+        return randomItem(vertical).direction;
+      }
+
+      return randomItem(candidates).direction;
+    };
+
+    switch (selectLargest()) {
+      case 'left':
+        return [leftRow, leftColumn];
+      case 'right':
+        return [rightRow, rightColumn];
+      case 'top':
+        return [topRow, topColumn];
+      case 'down':
+        return [downRow, downColumn];
+    }
+  };
+
+  const bestMoveWithZeroShipParts = (): [number, number] => {
+    const probabilities = Array<number>(board.length).fill(0);
+
+    for (const shipLength of shipLengths) {
+      for (let row = 0; row < boardRows; ++row) {
+        for (let column = 0; column < boardColumns; ++column) {
+          if (column + shipLength <= boardColumns) {
+            let canPlace = true;
+
+            for (let i = 0; i < shipLength; ++i) {
+              const cell = getCell(row, column + i);
+
+              if (cell != 'hidden') {
+                canPlace = false;
+                break;
+              }
+            }
+
+            if (canPlace) {
+              for (let i = 0; i < shipLength; ++i) {
+                const index = getIndex(row, column + i, boardColumns);
+                probabilities[index] += 1;
+              }
+            }
+          }
+
+          if (row + shipLength <= boardRows) {
+            let canPlace = true;
+
+            for (let i = 0; i < shipLength; ++i) {
+              const cell = getCell(row + i, column);
+
+              if (cell != 'hidden') {
+                canPlace = false;
+                break;
+              }
+            }
+
+            if (canPlace) {
+              for (let i = 0; i < shipLength; ++i) {
+                const index = getIndex(row + i, column, boardColumns);
+                probabilities[index] += 1;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    const normalizeEdgeFactor = (row: number, column: number): number => {
+      const rowDistance = Math.min(row, boardRows - row - 1);
+      const colDistance = Math.min(column, boardColumns - column - 1);
+
+      return Math.min(rowDistance + 1, colDistance + 1) * 5;
+    };
+
+    for (let row = 0; row < boardRows; row++) {
+      for (let col = 0; col < boardColumns; col++) {
+        const index = getIndex(row, col, boardColumns);
+        probabilities[index] *= normalizeEdgeFactor(row, col);
+      }
+    }
+
+    let maxProbability = 0;
+    let bestMove: [number, number] = [0, 0];
+
+    for (let i = 0; i < probabilities.length; i++) {
+      if (board[i] == 'hidden' && probabilities[i] > maxProbability) {
+        maxProbability = probabilities[i];
+        bestMove = getRowColumn(i, boardColumns);
+      }
+    }
+
+    return bestMove;
+  };
+
+  let shipPart: [number, number] | null = null;
+
+  for (let row = 0; row < boardRows; ++row) {
+    for (let column = 0; column < boardColumns; ++column) {
+      if (getCell(row, column) == 'ship-part') {
+        shipPart = [row, column];
+        break;
+      }
+    }
+
+    if (shipPart) break;
+  }
+
+  if (shipPart) {
+    const [originRow, originColumn] = shipPart;
+    const nextPartDirection = isAround(originRow, originColumn, 'ship-part');
+
+    if (nextPartDirection) {
+      return bestMoveWithTwoShipParts(originRow, originColumn, nextPartDirection);
+    }
+
+    return bestMoveWithOneShipPart(originRow, originColumn);
+  }
+
+  return bestMoveWithZeroShipParts();
 };
 
 type GameState = 'ship-select' | 'player-select' | 'enemy-select';
@@ -621,41 +1002,47 @@ export default function Play() {
     playButton.classList.add('pointer-events-none', 'opacity-25');
   }, [playerShipData]);
 
-  useEffect(() => {
-    (async (): Promise<void> => {
-      if (gameState == 'ship-select') return;
+  const enemyTurn = async (): Promise<void> => {
+    const tileSize = computeTileSize();
+    const shipLenghts = getShipLenghts(tileSize);
 
-      const shipContainer = shipContainerRef.current!;
+    await wait(500);
 
-      if (gameState == 'player-select') {
-        shipContainer.classList.add('invisible');
-        return;
-      }
-
-      shipContainer.classList.remove('invisible');
-
-      const tileSize = computeTileSize();
-      const shipLenghts = getShipLenghts(tileSize);
+    setEnemyBoard(previous => {
+      const enemyBoard = [...previous];
 
       const [row, column] = enemyAI(enemyBoard, boardRows, boardColumns, shipLenghts);
-      const index = getIndex(row, column, boardColumns);
 
-      await wait(750);
+      const newBoard = hitBoard(
+        enemyBoard,
+        boardRows,
+        boardColumns,
+        row,
+        column,
+        playerShipData,
+      );
 
-      const hitInfo = canHitShip(row, column, playerShipData);
+      return newBoard;
+    });
 
-      setEnemyBoard(previous => {
-        const enemyBoard = [...previous];
+    await wait(1000);
 
-        enemyBoard[index] = hitInfo;
+    setGameState('player-select');
+  };
 
-        return enemyBoard;
-      });
+  useEffect(() => {
+    if (gameState == 'ship-select') return;
 
-      await wait(1500);
+    const shipContainer = shipContainerRef.current!;
 
-      setGameState('player-select');
-    })();
+    if (gameState == 'player-select') {
+      shipContainer.classList.add('invisible');
+    }
+
+    if (gameState == 'enemy-select') {
+      shipContainer.classList.remove('invisible');
+      enemyTurn();
+    }
   }, [gameState]);
 
   const playerBoardClick = async (
@@ -669,19 +1056,18 @@ export default function Play() {
     const y = event.clientY - boardRect.top;
 
     const [row, column] = getTileLocation(x, y, tileSize);
-    const index = getIndex(row, column, boardColumns);
 
-    const hitInfo = canHitShip(row, column, enemyShipData);
+    const newBoard = hitBoard(
+      playerBoard,
+      boardRows,
+      boardColumns,
+      row,
+      column,
+      enemyShipData,
+    );
+    setPlayerBoard(newBoard);
 
-    setPlayerBoard(previous => {
-      const playerBoard = [...previous];
-
-      playerBoard[index] = hitInfo;
-
-      return playerBoard;
-    });
-
-    await wait(1500);
+    await wait(1000);
 
     setGameState('enemy-select');
   };
@@ -701,7 +1087,7 @@ export default function Play() {
     const [enemyShipData] = generateRandomShipData(boardRows, boardColumns, shipLenghts);
     setEnemyShipData(enemyShipData);
 
-    setGameState(Math.random() > 0.0 ? 'player-select' : 'enemy-select');
+    setGameState(randomBoolean() ? 'player-select' : 'enemy-select');
   };
 
   const deleteShips = (): void => {
@@ -817,7 +1203,7 @@ export default function Play() {
               {gameState == 'player-select'
                 ? playerBoard.map((cell, index) => (
                     <div
-                      className={`${cell == 'hidden' ? 'cursor-pointer hover:bg-light-400' : ''} ${cell == 'empty' ? 'bg-light-400' : ''} ${cell == 'ship-part' ? 'bg-red-500' : ''} border border-dark-800`}
+                      className={`${cell == 'hidden' ? 'cursor-pointer hover:bg-light-400' : ''} ${cell == 'empty' ? 'bg-light-400' : ''} ${cell == 'ship-part' ? 'bg-red-500' : ''} ${cell == 'ship-all' ? 'bg-red-500' : ''} border border-dark-800`}
                       onClick={cell == 'hidden' ? playerBoardClick : undefined}
                       key={index}
                     ></div>
@@ -827,7 +1213,7 @@ export default function Play() {
               {gameState == 'enemy-select'
                 ? enemyBoard.map((cell, index) => (
                     <div
-                      className={`${cell == 'empty' ? 'bg-light-400' : ''} ${cell == 'ship-part' ? 'bg-red-500' : ''} border border-dark-800`}
+                      className={`${cell == 'empty' ? 'bg-light-400' : ''} ${cell == 'ship-part' ? 'bg-red-500' : ''} ${cell == 'ship-all' ? 'bg-red-500' : ''} border border-dark-800`}
                       key={index}
                     ></div>
                   ))
