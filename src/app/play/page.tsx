@@ -6,11 +6,12 @@ import {
   useRef,
   useState,
   type ComponentPropsWithRef,
+  type MouseEvent,
   type ReactNode,
 } from 'react';
 import { PlayIcon, ShuffleIcon, Trash2Icon } from 'lucide-react';
 
-import { centerPointToTile, getTileLocation, pointInsideRect, randomInteger } from '@/utils';
+import { randomInteger, wait } from '@/utils';
 
 const shipImageInfo: { path: string; width: number; height: number }[] = [
   { path: '/images/Ship 1 - Full.webp', width: 30, height: 81 },
@@ -18,6 +19,45 @@ const shipImageInfo: { path: string; width: number; height: number }[] = [
   { path: '/images/Ship 3 - Full.webp', width: 30, height: 150 },
   { path: '/images/Ship 4 - Full.webp', width: 30, height: 176 },
 ];
+
+const getTileLocation = (x: number, y: number, tileSize: number): [number, number] => {
+  const row = Math.floor(y / tileSize);
+  const column = Math.floor(x / tileSize);
+
+  return [row, column];
+};
+
+const pointInsideRect = (
+  px: number,
+  py: number,
+  left: number,
+  top: number,
+  width: number,
+  height: number,
+): boolean => {
+  return px > left && px < left + width && py > top && py < top + height;
+};
+
+const centerPointToTile = (
+  left: number,
+  top: number,
+  width: number,
+  height: number,
+  tileSize: number,
+  horizontal: boolean,
+): [number, number] => {
+  if (horizontal) {
+    const leftRotated = left - 5;
+    const topRotated = top + tileSize * 0.5;
+
+    return [leftRotated, topRotated];
+  }
+
+  const leftCentered = left + (tileSize - (width % tileSize)) * 0.5;
+  const topCentered = top + (tileSize - (height % tileSize)) * 0.5;
+
+  return [leftCentered, topCentered];
+};
 
 type ShipData = { row: number; column: number; length: number; horizontal: boolean };
 
@@ -269,12 +309,39 @@ const generateRandomShipData = (
   return [shipData, shipBoard];
 };
 
-type BoardCell = 'hidden' | 'empty' | 'ship-part' | 'ship-all';
+type BoardCell = 'hidden' | 'empty' | 'ship-part';
 
 const generateBoard = (boardRows: number, boardColumns: number): BoardCell[] => {
   const board = Array<BoardCell>(boardRows * boardColumns);
 
-  return board.fill('empty');
+  return board.fill('hidden');
+};
+
+const canHitShip = (row: number, column: number, ships: ShipData[]): 'empty' | 'ship-part' => {
+  for (const ship of ships) {
+    for (let i = 0; i < ship.length; ++i) {
+      const shipRow = ship.row + (ship.horizontal ? 0 : i);
+      const shipColumn = ship.column + (ship.horizontal ? i : 0);
+
+      if (row == shipRow && column == shipColumn) {
+        return 'ship-part';
+      }
+    }
+  }
+
+  return 'empty';
+};
+
+const enemyAI = (
+  board: BoardCell[],
+  boardRows: number,
+  boardColumns: number,
+  shipLengths: number[],
+): [number, number] => {
+  const row = randomInteger(0, boardRows);
+  const column = randomInteger(0, boardColumns);
+
+  return [row, column];
 };
 
 type GameState = 'ship-select' | 'player-select' | 'enemy-select';
@@ -314,7 +381,7 @@ export default function Play() {
     generateBoard(boardRows, boardColumns),
   );
   const [enemyShipData, setEnemyShipData] = useState<ShipData[]>([]);
-  const [emenyBoard, setEnemyBoard] = useState<BoardCell[]>(() =>
+  const [enemyBoard, setEnemyBoard] = useState<BoardCell[]>(() =>
     generateBoard(boardRows, boardColumns),
   );
   const [shipBoard, setShipBoard] = useState(() => generateShipBoard(boardRows, boardColumns));
@@ -350,7 +417,7 @@ export default function Play() {
     let dragging: { ship: HTMLImageElement; offsetX: number; offsetY: number } | false = false;
     let valid: boolean = false;
 
-    const documentMousemouseEvent = (event: MouseEvent): void => {
+    const documentMousemouseEvent = (event: globalThis.MouseEvent): void => {
       if (!dragging) return;
 
       const { ship, offsetX, offsetY } = dragging;
@@ -406,7 +473,7 @@ export default function Play() {
       });
     };
 
-    const shipMousedownEvent = (event: MouseEvent): void => {
+    const shipMousedownEvent = (event: globalThis.MouseEvent): void => {
       const ship = event.target as HTMLImageElement;
 
       const shipRect = ship.getBoundingClientRect();
@@ -454,7 +521,7 @@ export default function Play() {
       documentMousemouseEvent(event);
     };
 
-    const documentMouseupEvent = (event: MouseEvent): void => {
+    const documentMouseupEvent = (event: globalThis.MouseEvent): void => {
       if (!dragging) return;
 
       const { ship, offsetX, offsetY } = dragging;
@@ -554,6 +621,71 @@ export default function Play() {
     playButton.classList.add('pointer-events-none', 'opacity-25');
   }, [playerShipData]);
 
+  useEffect(() => {
+    (async (): Promise<void> => {
+      if (gameState == 'ship-select') return;
+
+      const shipContainer = shipContainerRef.current!;
+
+      if (gameState == 'player-select') {
+        shipContainer.classList.add('invisible');
+        return;
+      }
+
+      shipContainer.classList.remove('invisible');
+
+      const tileSize = computeTileSize();
+      const shipLenghts = getShipLenghts(tileSize);
+
+      const [row, column] = enemyAI(enemyBoard, boardRows, boardColumns, shipLenghts);
+      const index = getIndex(row, column, boardColumns);
+
+      await wait(750);
+
+      const hitInfo = canHitShip(row, column, playerShipData);
+
+      setEnemyBoard(previous => {
+        const enemyBoard = [...previous];
+
+        enemyBoard[index] = hitInfo;
+
+        return enemyBoard;
+      });
+
+      await wait(1500);
+
+      setGameState('player-select');
+    })();
+  }, [gameState]);
+
+  const playerBoardClick = async (
+    event: MouseEvent<HTMLDivElement, globalThis.MouseEvent>,
+  ): Promise<void> => {
+    const shipContainer = shipContainerRef.current!;
+    const boardRect = shipContainer.getBoundingClientRect();
+
+    const tileSize = computeTileSize();
+    const x = event.clientX - boardRect.left;
+    const y = event.clientY - boardRect.top;
+
+    const [row, column] = getTileLocation(x, y, tileSize);
+    const index = getIndex(row, column, boardColumns);
+
+    const hitInfo = canHitShip(row, column, enemyShipData);
+
+    setPlayerBoard(previous => {
+      const playerBoard = [...previous];
+
+      playerBoard[index] = hitInfo;
+
+      return playerBoard;
+    });
+
+    await wait(1500);
+
+    setGameState('enemy-select');
+  };
+
   const playGame = (): void => {
     const playButton = playButtonRef.current!;
     const shuffleButton = shuffleButtonRef.current!;
@@ -569,7 +701,7 @@ export default function Play() {
     const [enemyShipData] = generateRandomShipData(boardRows, boardColumns, shipLenghts);
     setEnemyShipData(enemyShipData);
 
-    setGameState(Math.random() > 0.5 ? 'player-select' : 'enemy-select');
+    setGameState(Math.random() > 0.0 ? 'player-select' : 'enemy-select');
   };
 
   const deleteShips = (): void => {
@@ -673,12 +805,33 @@ export default function Play() {
                 gridTemplateColumns: `repeat(${boardColumns}, 1fr)`,
               }}
             >
-              {shipBoard.map((cell, index) => (
-                <div
-                  className={`${cell == 'hover' ? 'bg-light-400' : ''} ${cell == 'full' ? 'bg-orange-200' : ''} ${cell == 'border' ? 'bg-orange-300' : ''} border border-dark-800`}
-                  key={index}
-                ></div>
-              ))}
+              {gameState == 'ship-select'
+                ? shipBoard.map((cell, index) => (
+                    <div
+                      className={`${cell == 'hover' ? 'bg-light-400' : ''} ${cell == 'full' ? 'bg-orange-200' : ''} ${cell == 'border' ? 'bg-orange-300' : ''} border border-dark-800`}
+                      key={index}
+                    ></div>
+                  ))
+                : null}
+
+              {gameState == 'player-select'
+                ? playerBoard.map((cell, index) => (
+                    <div
+                      className={`${cell == 'hidden' ? 'cursor-pointer hover:bg-light-400' : ''} ${cell == 'empty' ? 'bg-light-400' : ''} ${cell == 'ship-part' ? 'bg-red-500' : ''} border border-dark-800`}
+                      onClick={cell == 'hidden' ? playerBoardClick : undefined}
+                      key={index}
+                    ></div>
+                  ))
+                : null}
+
+              {gameState == 'enemy-select'
+                ? enemyBoard.map((cell, index) => (
+                    <div
+                      className={`${cell == 'empty' ? 'bg-light-400' : ''} ${cell == 'ship-part' ? 'bg-red-500' : ''} border border-dark-800`}
+                      key={index}
+                    ></div>
+                  ))
+                : null}
 
               <div
                 ref={shipContainerRef}
