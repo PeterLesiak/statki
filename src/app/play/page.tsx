@@ -1146,7 +1146,7 @@ export default function Play() {
 
   return (
     <div className="grid h-full place-items-center">
-      <main className="grid grid-cols-[1fr_5fr_1fr] gap-8 rounded-lg bg-light-100 px-8 py-8 shadow-[8px_8px_0_0_theme(colors.dark.800)] drop-shadow-2xl lg:gap-16 lg:px-16">
+      <main className="grid-cols-[1fr_5fr_1fr] gap-8 rounded-lg bg-light-100 px-8 py-8 shadow-[8px_8px_0_0_theme(colors.dark.800)] drop-shadow-2xl lg:gap-16 lg:px-16">
         <section
           className="grid place-items-center gap-4"
           style={{ gridTemplateColumns: `repeat(${shipInfo.length / 3}, 1fr)` }}
