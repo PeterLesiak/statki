@@ -2,7 +2,8 @@
 
 - [x] Add ability to rotate ships
 - [ ] Add slick animations
-- [ ] Keep everything **extremely** mobile-friendly
+- [x] Keep everything **extremely** mobile-friendly
+- [ ] Add remaining ships panel
 - [ ] Use custom target as cursor
 - [ ] Add confetti at the end
 - [ ] Allow other board sizes (10x10 14x14)

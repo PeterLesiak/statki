@@ -13,12 +13,21 @@ import { PlayIcon, ShuffleIcon, Trash2Icon } from 'lucide-react';
 
 import { randomBoolean, randomInteger, randomItem, wait } from '@/utils';
 
-const shipImageInfo: { path: string; width: number; height: number }[] = [
+type ImageInfo = { path: string; width: number; height: number };
+
+const shipImageInfo: ImageInfo[] = [
   { path: '/images/Ship 1 - Full.webp', width: 30, height: 81 },
   { path: '/images/Ship 2 - Full.webp', width: 30, height: 115 },
   { path: '/images/Ship 3 - Full.webp', width: 30, height: 150 },
   { path: '/images/Ship 4 - Full.webp', width: 30, height: 176 },
 ];
+
+const resizeShipImage = (imageInfo: ImageInfo, tileSize: number): [number, number] => {
+  const width = (imageInfo.width / 34) * tileSize;
+  const height = width * (imageInfo.height / imageInfo.width);
+
+  return [width, height];
+};
 
 const getTileLocation = (x: number, y: number, tileSize: number): [number, number] => {
   const row = Math.floor(y / tileSize);
@@ -555,7 +564,7 @@ const enemyAI = (
   const bestMoveWithOneShipPart = (
     originRow: number,
     originColumn: number,
-    horizontalProbability: number = 0.3,
+    horizontalProbability: number = 0.25,
   ): [number, number] => {
     const [leftRow, leftColumn] = moveInDirection(originRow, originColumn, 1, 'left');
     const [rightRow, rightColumn] = moveInDirection(originRow, originColumn, 1, 'right');
@@ -675,13 +684,19 @@ const enemyAI = (
       const rowDistance = Math.min(row, boardRows - row - 1);
       const colDistance = Math.min(column, boardColumns - column - 1);
 
-      return Math.min(rowDistance + 1, colDistance + 1) * 5;
+      return Math.min(rowDistance + 1, colDistance + 1) * 2;
+    };
+
+    const randomFactor = (): number => {
+      return Math.random();
     };
 
     for (let row = 0; row < boardRows; row++) {
       for (let col = 0; col < boardColumns; col++) {
         const index = getIndex(row, col, boardColumns);
-        probabilities[index] *= normalizeEdgeFactor(row, col);
+
+        probabilities[index] =
+          randomFactor() + probabilities[index] * normalizeEdgeFactor(row, col);
       }
     }
 
@@ -784,8 +799,9 @@ export default function Play() {
   const getShipLenghts = (tileSize: number): number[] => {
     return shipInfo.map(infoIndex => {
       const imageInfo = shipImageInfo[infoIndex];
+      const [_, height] = resizeShipImage(imageInfo, tileSize);
 
-      return Math.ceil(imageInfo.height / tileSize);
+      return Math.ceil(height / tileSize);
     });
   };
 
@@ -798,7 +814,7 @@ export default function Play() {
     let dragging: { ship: HTMLImageElement; offsetX: number; offsetY: number } | false = false;
     let valid: boolean = false;
 
-    const documentMousemouseEvent = (event: globalThis.MouseEvent): void => {
+    const documentPointermoveEvent = (event: PointerEvent): void => {
       if (!dragging) return;
 
       const { ship, offsetX, offsetY } = dragging;
@@ -826,9 +842,10 @@ export default function Play() {
           return shipBoard;
         }
 
-        const tileSize = computeTileSize();
         const x = event.x - boardRect.left - offsetX;
         const y = event.y - boardRect.top - offsetY;
+
+        const tileSize = computeTileSize();
 
         const [row, column] = getTileLocation(x, y, tileSize);
 
@@ -854,24 +871,26 @@ export default function Play() {
       });
     };
 
-    const shipMousedownEvent = (event: globalThis.MouseEvent): void => {
+    const shipPointerdownEvent = (event: PointerEvent): void => {
       const ship = event.target as HTMLImageElement;
 
       const shipRect = ship.getBoundingClientRect();
       const boardRect = shipContainer.getBoundingClientRect();
 
+      const tileSize = computeTileSize();
+
+      const index = Number(ship.dataset['index']);
+
       const offsetX = event.x - shipRect.left;
       const offsetY = event.y - shipRect.top;
 
       if (ship.parentElement == shipContainer) {
-        const tileSize = computeTileSize();
         const x = event.x - boardRect.left - offsetX;
         const y = event.y - boardRect.top - offsetY;
 
         const [row, column] = getTileLocation(x, y, tileSize);
 
         const lengths = getShipLenghts(tileSize);
-        const index = Number(ship.dataset['index']);
         const length = lengths[index];
 
         const horizontal = ship.classList.contains('-rotate-90');
@@ -896,23 +915,33 @@ export default function Play() {
       }
 
       dragging = { ship, offsetX, offsetY };
+
+      const imageInfo = shipImageInfo[shipInfo[index]];
+      const [width, height] = resizeShipImage(imageInfo, tileSize);
+
+      ship.style.width = `${width}px`;
+      ship.style.height = `${height}px`;
       ship.classList.remove('-rotate-90', 'origin-[top_center]');
+      document.body.style.userSelect = 'none';
       document.body.append(ship);
 
-      documentMousemouseEvent(event);
+      documentPointermoveEvent(event);
     };
 
-    const documentMouseupEvent = (event: globalThis.MouseEvent): void => {
+    const documentPointerupEvent = (event: PointerEvent): void => {
       if (!dragging) return;
 
       const { ship, offsetX, offsetY } = dragging;
 
+      const index = Number(ship.dataset['index']);
+
       if (valid) {
         const boardRect = shipContainer.getBoundingClientRect();
 
-        const tileSize = computeTileSize();
         const x = event.x - boardRect.left - offsetX;
         const y = event.y - boardRect.top - offsetY;
+
+        const tileSize = computeTileSize();
 
         const [row, column] = getTileLocation(x, y, tileSize);
 
@@ -929,7 +958,6 @@ export default function Play() {
         shipContainer.append(ship);
 
         const lengths = getShipLenghts(tileSize);
-        const index = Number(ship.dataset['index']);
         const length = lengths[index];
 
         const shipData: ShipData = { row, column, length, horizontal: false };
@@ -950,8 +978,11 @@ export default function Play() {
           return shipBoard;
         });
       } else {
-        const index = Number(ship.dataset['index']);
         const shipPlaceholder = shipPlaceholders[index];
+
+        const imageInfo = shipImageInfo[shipInfo[index]];
+        ship.style.width = `${imageInfo.width}px`;
+        ship.style.height = `${imageInfo.height}px`;
 
         ship.style.left = '';
         ship.style.top = '';
@@ -960,6 +991,8 @@ export default function Play() {
 
       dragging = false;
       valid = false;
+
+      document.body.style.userSelect = 'auto';
     };
 
     const eventOptions: AddEventListenerOptions = {
@@ -967,19 +1000,19 @@ export default function Play() {
     };
 
     for (const ship of ships) {
-      ship.addEventListener('mousedown', shipMousedownEvent, eventOptions);
+      ship.addEventListener('pointerdown', shipPointerdownEvent, eventOptions);
     }
 
-    document.addEventListener('mousemove', documentMousemouseEvent, eventOptions);
-    document.addEventListener('mouseup', documentMouseupEvent, eventOptions);
+    document.addEventListener('pointermove', documentPointermoveEvent, eventOptions);
+    document.addEventListener('pointerup', documentPointerupEvent, eventOptions);
 
     const dispose = (): void => {
       for (const ship of ships) {
-        ship.removeEventListener('mousedown', shipMousedownEvent, eventOptions);
+        ship.removeEventListener('pointerdown', shipPointerdownEvent, eventOptions);
       }
 
-      document.removeEventListener('mousemove', documentMousemouseEvent, eventOptions);
-      document.removeEventListener('mouseup', documentMouseupEvent, eventOptions);
+      document.removeEventListener('pointermove', documentPointermoveEvent, eventOptions);
+      document.removeEventListener('pointerup', documentPointerupEvent, eventOptions);
     };
 
     playButton.addEventListener('click', dispose, eventOptions);
@@ -1051,10 +1084,10 @@ export default function Play() {
     const shipContainer = shipContainerRef.current!;
     const boardRect = shipContainer.getBoundingClientRect();
 
-    const tileSize = computeTileSize();
     const x = event.clientX - boardRect.left;
     const y = event.clientY - boardRect.top;
 
+    const tileSize = computeTileSize();
     const [row, column] = getTileLocation(x, y, tileSize);
 
     const newBoard = hitBoard(
@@ -1097,7 +1130,10 @@ export default function Play() {
     for (const ship of ships) {
       const index = Number(ship.dataset['index']);
       const shipPlaceholder = shipPlaceholders[index];
+      const imageInfo = shipImageInfo[shipInfo[index]];
 
+      ship.style.width = `${imageInfo.width}px`;
+      ship.style.height = `${imageInfo.height}px`;
       ship.style.left = '';
       ship.style.top = '';
       ship.classList.remove('-rotate-90', 'origin-[top_center]');
@@ -1120,6 +1156,11 @@ export default function Play() {
 
     shipData.forEach((data, index) => {
       const ship = shipsRef.current[index]!;
+      const imageInfo = shipImageInfo[shipInfo[index]];
+      const [width, height] = resizeShipImage(imageInfo, tileSize);
+
+      ship.style.width = `${width}px`;
+      ship.style.height = `${height}px`;
 
       const [left, top] = centerPointToTile(
         data.column * tileSize,
@@ -1146,15 +1187,12 @@ export default function Play() {
 
   return (
     <div className="grid h-full place-items-center">
-      <main className="grid-cols-[1fr_5fr_1fr] gap-8 rounded-lg bg-light-100 px-8 py-8 shadow-[8px_8px_0_0_theme(colors.dark.800)] drop-shadow-2xl lg:gap-16 lg:px-16">
-        <section
-          className="grid place-items-center gap-4"
-          style={{ gridTemplateColumns: `repeat(${shipInfo.length / 3}, 1fr)` }}
-        >
+      <main className="flex h-full w-full flex-col bg-light-100 shadow-[8px_8px_0_0_theme(colors.dark.800)] drop-shadow-2xl lg:h-auto lg:w-auto lg:flex-row lg:gap-16 lg:rounded-lg lg:px-16 lg:py-8">
+        <section className="mb-10 grid grid-cols-6 place-items-center sm:mb-0 lg:grid-cols-2 lg:gap-10">
           {shipInfo.map((imageIndex, index) => (
             <div
               ref={instance => void (shipPlaceholdersRef.current[index] = instance)}
-              className="relative"
+              className="relative scale-75 lg:scale-100"
               style={{
                 width: shipImageInfo[imageIndex].width,
                 height: shipImageInfo[imageIndex].height,
@@ -1167,7 +1205,6 @@ export default function Play() {
                 width={shipImageInfo[imageIndex].width}
                 height={shipImageInfo[imageIndex].height}
                 alt="Ship"
-                draggable="false"
                 data-index={index}
                 className="absolute cursor-pointer select-none"
                 style={{
@@ -1179,13 +1216,15 @@ export default function Play() {
           ))}
         </section>
 
-        <div className="flex flex-col justify-center gap-2">
-          <h2 className="mb-8 w-full text-center text-3xl">Rozmieść jednostki na planszy</h2>
+        <div className="flex flex-col justify-center">
+          <h2 className="mb-6 w-full text-center text-xl sm:text-3xl lg:mb-8">
+            Rozmieść jednostki na planszy
+          </h2>
 
           <div className="flex justify-center">
             <div
               id="tile-grid"
-              className="relative grid aspect-square h-[30rem] rounded border-2 border-dark-800"
+              className="relative grid aspect-square h-[20rem] rounded border-2 border-dark-800 sm:h-[30rem]"
               style={{
                 gridTemplateRows: `repeat(${boardRows}, 1fr)`,
                 gridTemplateColumns: `repeat(${boardColumns}, 1fr)`,
@@ -1227,7 +1266,7 @@ export default function Play() {
           </div>
         </div>
 
-        <section className="flex flex-col justify-around gap-4 px-1">
+        <section className="my-auto flex justify-around lg:my-0 lg:w-[5rem] lg:flex-col">
           <BoardButton
             ref={playButtonRef}
             color="blue"
