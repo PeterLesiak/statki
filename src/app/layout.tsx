@@ -21,11 +21,10 @@ export default function RootLayout({
     <html lang="pl">
       <body className={globalFont.className}>
         <div
-          className="h-screen bg-orange-500 bg-[size:300px]"
+          className="fixed -z-[1] h-full w-full bg-orange-500 bg-[size:300px]"
           style={{ backgroundImage: `url('/images/background.webp')` }}
-        >
-          {children}
-        </div>
+        ></div>
+        {children}
       </body>
     </html>
   );

@@ -918,10 +918,12 @@ export default function Play() {
 
       const imageInfo = shipImageInfo[shipInfo[index]];
       const [width, height] = resizeShipImage(imageInfo, tileSize);
-
       ship.style.width = `${width}px`;
       ship.style.height = `${height}px`;
+
+      ship.classList.add('brightness-125');
       ship.classList.remove('-rotate-90', 'origin-[top_center]');
+
       document.body.style.userSelect = 'none';
       document.body.append(ship);
 
@@ -992,6 +994,7 @@ export default function Play() {
       dragging = false;
       valid = false;
 
+      ship.classList.remove('brightness-125');
       document.body.style.userSelect = 'auto';
     };
 
@@ -1186,8 +1189,8 @@ export default function Play() {
   };
 
   return (
-    <div className="grid h-full place-items-center">
-      <main className="flex h-full w-full flex-col bg-light-100 shadow-[8px_8px_0_0_theme(colors.dark.800)] drop-shadow-2xl lg:h-auto lg:w-auto lg:flex-row lg:gap-16 lg:rounded-lg lg:px-16 lg:py-8">
+    <div className="grid h-dvh place-items-center">
+      <main className="flex h-full w-full flex-col bg-light-100 sm:w-auto sm:rounded-lg sm:px-16 sm:drop-shadow-2xl lg:h-auto lg:flex-row lg:gap-16 lg:py-8 lg:shadow-[8px_8px_0_0_theme(colors.dark.800)]">
         <section className="mb-10 grid grid-cols-6 place-items-center sm:mb-0 lg:grid-cols-2 lg:gap-10">
           {shipInfo.map((imageIndex, index) => (
             <div

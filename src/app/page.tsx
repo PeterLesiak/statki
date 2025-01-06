@@ -66,7 +66,7 @@ export default function Home() {
   };
 
   return (
-    <div className="grid h-full place-items-center">
+    <div className="grid h-dvh place-items-center">
       <main className="rounded-lg bg-light-100 p-6 shadow-[8px_8px_0_0_theme(colors.dark.800)] drop-shadow-2xl lg:p-12">
         <div className="grid grid-rows-[1fr_0.2rem_1fr] gap-8 md:grid-cols-[1fr_0.2rem_1fr] md:grid-rows-none md:gap-12">
           <div className="flex flex-col items-center gap-8">
@@ -84,7 +84,7 @@ export default function Home() {
               </div>
 
               <div
-                className="bg-light absolute left-32 top-32 rotate-180 cursor-pointer rounded-full p-2 *:stroke-dark-800 hover:scale-110"
+                className="absolute left-32 top-32 rotate-180 cursor-pointer rounded-full bg-light p-2 *:stroke-dark-800 hover:scale-110"
                 onClick={nextAvatar}
               >
                 <RotateCwIcon size={30} strokeWidth={3.2} />
