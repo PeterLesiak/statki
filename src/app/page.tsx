@@ -54,13 +54,19 @@ export default function Home() {
   };
 
   const startGame = (): void => {
-    if (avatar === null) return;
+    if (!defaultAvatar) return;
 
     const usernameValue = usernameRef.current!.value;
     setLastUsername(usernameValue);
     const username = usernameValue || defaultUsername;
 
-    const route = createURLString('/play', { boardSize, username, avatar: String(avatar) });
+    const currAvatar = avatar ?? defaultAvatar;
+
+    const route = createURLString('/play', {
+      boardSize,
+      username,
+      avatar: String(currAvatar),
+    });
 
     router.push(route);
   };
