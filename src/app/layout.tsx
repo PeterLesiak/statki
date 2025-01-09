@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 
 import './globals.css';
 
-const globalFont = Lexend();
+const globalFont = Lexend({ subsets: ['latin'] });
 
 // prettier-ignore
 export const metadata: Metadata = {
