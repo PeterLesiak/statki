@@ -3,12 +3,12 @@
 #### Important
 
 - [x] Add ability to rotate ships
-- [ ] Add slick animations
+- [x] Add slick animations
 - [x] Keep everything **extremely** mobile-friendly
 - [ ] Add remaining ships panel
 - [ ] Use custom target as cursor
-- [ ] Allow other board sizes (10x10 14x14)
-- [ ] Deploy
+- [x] Allow other board sizes (10x10 14x14)
+- [x] Deploy
 
 #### Other
 

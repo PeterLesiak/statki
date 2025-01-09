@@ -8,7 +8,7 @@ import { PlayIcon, RotateCwIcon } from 'lucide-react';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { createURLString, randomInteger } from '@/utils';
 
-type Opponent = 'user' | 'computer';
+type BoardSize = '10x10' | '14x14';
 
 const avatars = [
   '/images/brain.webp',
@@ -27,7 +27,7 @@ const avatars = [
 export default function Home() {
   const router = useRouter();
 
-  const [opponent, setOpponent] = useState<Opponent>('user');
+  const [boardSize, setBoardSize] = useState<BoardSize>('14x14');
   const [defaultUsername, setDefaultUsername] = useState('');
   const [lastUsername, setLastUsername] = useLocalStorage('username', '');
   const [defaultAvatar, setDefaultAvatar] = useState<number | null>(null);
@@ -60,7 +60,7 @@ export default function Home() {
     setLastUsername(usernameValue);
     const username = usernameValue || defaultUsername;
 
-    const route = createURLString('/play', { opponent, username, avatar: String(avatar) });
+    const route = createURLString('/play', { boardSize, username, avatar: String(avatar) });
 
     router.push(route);
   };
@@ -72,6 +72,7 @@ export default function Home() {
           <div className="flex flex-col items-center gap-8">
             <div className="relative flex">
               <div className="grid h-44 w-44 place-items-center overflow-hidden rounded-full border-4 border-dark-800 bg-orange-500">
+                <span className="shiny"></span>
                 {defaultAvatar !== null ? (
                   <Image
                     src={avatars[avatar === null ? defaultAvatar : avatar]}
@@ -79,6 +80,7 @@ export default function Home() {
                     width={240}
                     height={240}
                     priority={true}
+                    className="cursor-none transition-transform hover:scale-105"
                   />
                 ) : null}
               </div>
@@ -104,21 +106,21 @@ export default function Home() {
 
           <div className="flex flex-col items-center justify-between">
             <div>
-              <h3 className="mb-5 text-2xl">Wybierz przeciwnika</h3>
+              <h3 className="mb-5 text-2xl">Wybierz rozmiar planszy</h3>
               <div
-                className={`${opponent == 'computer' ? 'after:translate-x-full' : ''} relative grid cursor-pointer grid-cols-2 rounded border-[3px] border-dark-800 text-lg after:absolute after:h-full after:w-1/2 after:bg-dark-800 after:transition-transform after:ease-out`}
+                className={`${boardSize == '14x14' ? 'after:translate-x-full' : ''} relative grid cursor-pointer grid-cols-2 rounded border-[3px] border-dark-800 text-lg after:absolute after:h-full after:w-1/2 after:bg-dark-800 after:transition-transform after:ease-out`}
               >
                 <div
-                  className={`${opponent == 'user' ? 'text-light' : ''} relative z-[1] px-4 py-2 text-center transition-colors`}
-                  onClick={() => setOpponent('user')}
+                  className={`${boardSize == '10x10' ? 'text-light' : ''} relative z-[1] px-4 py-2 text-center transition-colors`}
+                  onClick={() => setBoardSize('10x10')}
                 >
-                  Gracz
+                  10x10
                 </div>
                 <div
-                  className={`${opponent == 'computer' ? 'text-light' : ''} relative z-[1] px-4 py-2 text-center transition-colors`}
-                  onClick={() => setOpponent('computer')}
+                  className={`${boardSize == '14x14' ? 'text-light' : ''} relative z-[1] px-4 py-2 text-center transition-colors`}
+                  onClick={() => setBoardSize('14x14')}
                 >
-                  Komputer
+                  14x14
                 </div>
               </div>
             </div>

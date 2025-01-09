@@ -1,10 +1,11 @@
 import { Lexend } from 'next/font/google';
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
+import * as motion from 'motion/react-client';
 
 import './globals.css';
 
-const globalFont = Lexend();
+const globalFont = Lexend({ subsets: ['latin'] });
 
 // prettier-ignore
 export const metadata: Metadata = {
@@ -20,10 +21,15 @@ export default function RootLayout({
   return (
     <html lang="pl">
       <body className={globalFont.className}>
-        <div
+        <motion.div
+          animate={{
+            transition: { ease: 'linear', duration: 8, repeat: Infinity },
+            backgroundPosition: '0px 300px',
+          }}
           className="fixed -z-[1] h-full w-full bg-orange-500 bg-[size:300px]"
           style={{ backgroundImage: `url('/images/background.webp')` }}
-        ></div>
+        />
+
         {children}
       </body>
     </html>
