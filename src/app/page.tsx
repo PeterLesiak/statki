@@ -77,7 +77,7 @@ export default function Home() {
         <div className="grid grid-rows-[1fr_0.2rem_1fr] gap-8 md:grid-cols-[1fr_0.2rem_1fr] md:grid-rows-none md:gap-12">
           <div className="flex flex-col items-center gap-8">
             <div className="relative flex">
-              <div className="grid h-44 w-44 place-items-center overflow-hidden rounded-full border-4 border-dark-800 bg-orange-500">
+              <div className="grid h-44 w-44 place-items-center select-none overflow-hidden rounded-full border-4 border-dark-800 bg-orange-500">
                 <span className="shiny"></span>
                 {defaultAvatar !== null ? (
                   <Image
