@@ -1282,6 +1282,7 @@ function Main() {
                 height={shipImageInfo[imageIndex].height}
                 alt="Ship"
                 data-index={index}
+                draggable="false"
                 className="absolute cursor-pointer select-none"
                 style={{
                   width: shipImageInfo[imageIndex].width,
